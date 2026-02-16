@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#db2777">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="माझं गाव">
+    <meta name="description" content="कळंब गावाचे official app">
+    <title>माझं गाव - कळंब</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        .marquee { overflow: hidden; white-space: nowrap; background: #9333ea; color: white; padding: 10px 0; font-weight: bold; }
+        .marquee span { display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+        .slider { position: relative; width: 100%; height: 250px; overflow: hidden; background: #f3f4f6; }
+        .slide { position: absolute; width: 100%; height: 100%; opacity: 0; transition: opacity 0.5s; }
+        .slide.active { opacity: 1; }
+        .slide img { width: 100%; height: 100%; object-fit: cover; }
+        .slider-controls { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; z-index: 10; }
+        .slider-arrows { position: absolute; top: 50%; width: 100%; display: flex; justify-content: space-between; padding: 0 10px; z-index: 10; transform: translateY(-50%); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Image compression - no size limit
+        const compressImage = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        const max = 800; // Reasonable size
+                        if (w > max) { h = (h * max) / w; w = max; }
+                        if (h > max) { w = (w * max) / h; h = max; }
+                        canvas.width = w; 
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const result = canvas.toDataURL('image/jpeg', 0.6); // Better quality
+                        resolve(result);
+                    };
+                    img.onerror = () => reject(new Error('Image load failed'));
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => reject(new Error('File read failed'));
+                reader.readAsDataURL(file);
+            });
+        };
+
+        const MASTER_PASSWORD = '0000';
+
+        function App() {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [userType, setUserType] = useState('');
+            const [currentUser, setCurrentUser] = useState(null);
+            const [users, setUsers] = useState([]);
+            const [loggedInUsers, setLoggedInUsers] = useState([]);
+            const [authScreen, setAuthScreen] = useState('login');
+            const [loginData, setLoginData] = useState({ mobile: '', password: '' });
+            const [registerData, setRegisterData] = useState({ name: '', mobile: '', password: '' });
+            const [currentSection, setCurrentSection] = useState('home');
+            const [showMenu, setShowMenu] = useState(false);
+            const [currentSlide, setCurrentSlide] = useState(0);
+            const [autoSlide, setAutoSlide] = useState(true);
+            const [loading, setLoading] = useState(false);
+            const [loadingMsg, setLoadingMsg] = useState('');
+            
+            const [credentials, setCredentials] = useState({
+                admin: { id: '0505', password: '0505' },
+                gov: { id: '0101', password: '0101' }
+            });
+            
+            const [mainVideo, setMainVideo] = useState('');
+            const [adBanners, setAdBanners] = useState([]);
+            const [schemes, setSchemes] = useState([]);
+            const [updates, setUpdates] = useState([]);
+            const [complaints, setComplaints] = useState([]);
+            const [personalities, setPersonalities] = useState([]);
+            const [phones, setPhones] = useState([]);
+            const [notices, setNotices] = useState([]);
+            const [blockedUsers, setBlockedUsers] = useState([]);
+            
+            const [newScheme, setNewScheme] = useState({ title: '', description: '' });
+            const [newUpdate, setNewUpdate] = useState({ title: '', content: '', photo: '', video: '' });
+            const [newPersonality, setNewPersonality] = useState({ name: '', description: '', photo: '' });
+            const [newPhone, setNewPhone] = useState({ name: '', number: '', category: '' });
+            const [newNotice, setNewNotice] = useState('');
+            const [newComplaint, setNewComplaint] = useState({ title: '', description: '', photo: '' });
+            const [newBanner, setNewBanner] = useState('');
+            const [commentText, setCommentText] = useState({});
+            const [showComments, setShowComments] = useState({});
+            const [showPasswordChange, setShowPasswordChange] = useState(false);
+            const [passwordChangeData, setPasswordChangeData] = useState({ current: '', new: '' });
+            
+            // Contact Admin states
+            const [contactMessages, setContactMessages] = useState([]);
+            const [newContactMsg, setNewContactMsg] = useState({ message: '', file: '' });
+            
+            const isRefreshing = useRef(false);
+
+            // Load data ONCE on mount
+            useEffect(() => {
+                const session = localStorage.getItem('session');
+                if (session) {
+                    const s = JSON.parse(session);
+                    setIsLoggedIn(true);
+                    setUserType(s.type);
+                    setCurrentUser(s.user);
+                }
+
+                loadData();
+            }, []);
+
+            const loadData = () => {
+                const data = localStorage.getItem('villageData');
+                if (data) {
+                    try {
+                        const d = JSON.parse(data);
+                        setMainVideo(d.mainVideo || '');
+                        setAdBanners(d.adBanners || []);
+                        setSchemes(d.schemes || []);
+                        setUpdates(d.updates || []);
+                        setComplaints(d.complaints || []);
+                        setPersonalities(d.personalities || []);
+                        setPhones(d.phones || []);
+                        setUsers(d.users || []);
+                        setNotices(d.notices || []);
+                        setBlockedUsers(d.blockedUsers || []);
+                        setLoggedInUsers(d.loggedInUsers || []);
+                        setCredentials(d.credentials || { admin: { id: '0505', password: '0505' }, gov: { id: '0101', password: '0101' } });
+                        setContactMessages(d.contactMessages || []);
+                    } catch (e) {
+                        console.error('Load error:', e);
+                    }
+                }
+            };
+
+            // Save data immediately when changed
+            const saveData = (dataOverride = null) => {
+                try {
+                    const data = dataOverride || {
+                        mainVideo, adBanners, schemes, updates, complaints, personalities, phones, users, notices, blockedUsers, credentials, loggedInUsers, contactMessages
+                    };
+                    localStorage.setItem('villageData', JSON.stringify(data));
+                    console.log('Data saved successfully');
+                } catch (e) {
+                    console.error('Save error:', e);
+                    alert('Save error! Data might be too large.');
+                }
+            };
+
+            // Save whenever any data changes
+            useEffect(() => {
+                if (isLoggedIn && !isRefreshing.current) {
+                    saveData();
+                }
+            }, [mainVideo, adBanners, schemes, updates, complaints, personalities, phones, users, notices, blockedUsers, credentials, loggedInUsers, contactMessages]);
+
+            useEffect(() => {
+                if (adBanners.length > 1 && autoSlide) {
+                    const timer = setInterval(() => {
+                        setCurrentSlide((prev) => (prev + 1) % adBanners.length);
+                    }, 3000);
+                    return () => clearInterval(timer);
+                }
+            }, [adBanners.length, autoSlide]);
+
+            const handleRegister = (e) => {
+                e.preventDefault();
+                if (registerData.password.length !== 4) { alert('पासवर्ड 4 अंकी असावा!'); return; }
+                if (users.find(u => u.mobile === registerData.mobile)) { alert('हा नंबर आधीच आहे!'); return; }
+                const newUser = { ...registerData, id: Date.now() };
+                const newUsers = [...users, newUser];
+                setUsers(newUsers);
+                saveData({ mainVideo, adBanners, schemes, updates, complaints, personalities, phones, users: newUsers, notices, blockedUsers, credentials, loggedInUsers });
+                alert('नोंदणी झाली!');
+                setAuthScreen('login');
+                setRegisterData({ name: '', mobile: '', password: '' });
+            };
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                
+                if (loginData.password === MASTER_PASSWORD) {
+                    const user = users.find(u => u.mobile === loginData.mobile);
+                    if (user) {
+                        setCurrentUser(user);
+                        setUserType('user');
+                        setIsLoggedIn(true);
+                        localStorage.setItem('session', JSON.stringify({ type: 'user', user }));
+                        if (!loggedInUsers.find(u => u.mobile === user.mobile)) {
+                            const newLoggedUsers = [...loggedInUsers, { mobile: user.mobile, name: user.name, loginTime: new Date().toLocaleString('mr-IN') }];
+                            setLoggedInUsers(newLoggedUsers);
+                        }
+                        setLoginData({ mobile: '', password: '' });
+                        return;
+                    }
+                }
+                
+                if (loginData.mobile === credentials.admin.id && loginData.password === credentials.admin.password) {
+                    const user = { name: 'Admin', mobile: credentials.admin.id };
+                    setCurrentUser(user);
+                    setUserType('admin');
+                    setIsLoggedIn(true);
+                    localStorage.setItem('session', JSON.stringify({ type: 'admin', user }));
+                    setLoginData({ mobile: '', password: '' });
+                    return;
+                }
+                
+                if (loginData.mobile === credentials.gov.id && loginData.password === credentials.gov.password) {
+                    const user = { name: 'प्रशासन', mobile: credentials.gov.id };
+                    setCurrentUser(user);
+                    setUserType('gov');
+                    setIsLoggedIn(true);
+                    localStorage.setItem('session', JSON.stringify({ type: 'gov', user }));
+                    setLoginData({ mobile: '', password: '' });
+                    return;
+                }
+                
+                const user = users.find(u => u.mobile === loginData.mobile && u.password === loginData.password);
+                if (blockedUsers.includes(loginData.mobile)) { alert('तुम्हाला Block केले आहे!'); return; }
+                if (user) {
+                    setCurrentUser(user);
+                    setUserType('user');
+                    setIsLoggedIn(true);
+                    localStorage.setItem('session', JSON.stringify({ type: 'user', user }));
+                    if (!loggedInUsers.find(u => u.mobile === user.mobile)) {
+                        const newLoggedUsers = [...loggedInUsers, { mobile: user.mobile, name: user.name, loginTime: new Date().toLocaleString('mr-IN') }];
+                        setLoggedInUsers(newLoggedUsers);
+                    }
+                    setLoginData({ mobile: '', password: '' });
+                } else {
+                    alert('चुकीचे credentials!');
+                }
+            };
+
+            const handleLogout = () => {
+                setIsLoggedIn(false);
+                setCurrentUser(null);
+                setUserType('');
+                localStorage.removeItem('session');
+            };
+
+            const handleImageUpload = async (e, setter) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // NO SIZE LIMIT
+                setLoading(true);
+                setLoadingMsg('Processing...');
+                
+                try {
+                    const compressed = await compressImage(file);
+                    setLoadingMsg('Saving...');
+                    
+                    setTimeout(() => {
+                        setter(compressed);
+                        setLoading(false);
+                        setLoadingMsg('');
+                    }, 100);
+                } catch (err) {
+                    console.error('Upload error:', err);
+                    setLoading(false);
+                    setLoadingMsg('');
+                    alert('Upload failed!');
+                    e.target.value = '';
+                }
+            };
+
+            const handleVideoUpload = async (e, setter) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                // NO SIZE LIMIT
+                setLoading(true);
+                setLoadingMsg('व्हिडीओ upload होत आहे...');
+                
+                try {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        setter(reader.result);
+                        setLoading(false);
+                        setLoadingMsg('');
+                        alert('✓ व्हिडीओ upload झाला!');
+                    };
+                    reader.onerror = () => {
+                        setLoading(false);
+                        setLoadingMsg('');
+                        alert('Upload failed!');
+                        e.target.value = '';
+                    };
+                    reader.readAsDataURL(file);
+                } catch (err) {
+                    console.error('Video upload error:', err);
+                    setLoading(false);
+                    setLoadingMsg('');
+                    alert('Upload failed!');
+                    e.target.value = '';
+                }
+            };
+
+            const addScheme = () => {
+                if (!newScheme.title || !newScheme.description) { alert('सर्व माहिती भरा'); return; }
+                const newSchemes = [{ ...newScheme, id: Date.now() }, ...schemes];
+                setSchemes(newSchemes);
+                setNewScheme({ title: '', description: '' });
+                alert('योजना जोडली!');
+            };
+
+            const addUpdate = () => {
+                if (!newUpdate.title || !newUpdate.content) { alert('Title आणि Content भरा'); return; }
+                const newUpdates = [{ ...newUpdate, id: Date.now(), date: new Date().toLocaleDateString('mr-IN'), comments: [] }, ...updates];
+                setUpdates(newUpdates);
+                setNewUpdate({ title: '', content: '', photo: '', video: '' });
+                alert('बातमी जोडली!');
+            };
+
+            const addPersonality = () => {
+                if (!newPersonality.name || !newPersonality.description) { alert('सर्व माहिती भरा'); return; }
+                const newPersonalities = [{ ...newPersonality, id: Date.now() }, ...personalities];
+                setPersonalities(newPersonalities);
+                setNewPersonality({ name: '', description: '', photo: '' });
+                alert('व्यक्तिमत्व जोडले!');
+            };
+
+            const addPhone = () => {
+                if (!newPhone.name || !newPhone.number) { alert('सर्व माहिती भरा'); return; }
+                const newPhones = [{ ...newPhone, id: Date.now() }, ...phones];
+                setPhones(newPhones);
+                setNewPhone({ name: '', number: '', category: '' });
+                alert('फोन नंबर जोडला!');
+            };
+
+            const addNotice = () => {
+                if (!newNotice) { alert('सूचना लिहा'); return; }
+                const newNotices = [{ id: Date.now(), text: newNotice }, ...notices];
+                setNotices(newNotices);
+                setNewNotice('');
+                alert('सूचना जोडली!');
+            };
+
+            const addComplaint = () => {
+                if (!newComplaint.title || !newComplaint.description) { alert('विषय आणि तपशील भरा'); return; }
+                const newComplaints = [{ 
+                    ...newComplaint, 
+                    id: Date.now(), 
+                    date: new Date().toLocaleDateString('mr-IN'),
+                    by: currentUser.name,
+                    approved: false,
+                    comments: [],
+                    likes: 0,
+                    likedBy: []
+                }, ...complaints];
+                setComplaints(newComplaints);
+                setNewComplaint({ title: '', description: '', photo: '' });
+                alert('तक्रार नोंदवली!');
+            };
+
+            const addBanner = () => {
+                if (!newBanner) { alert('फोटो निवडा'); return; }
+                const newBanners = [...adBanners, {id: Date.now(), url: newBanner}];
+                setAdBanners(newBanners);
+                setNewBanner('');
+                alert('बॅनर जोडला!');
+            };
+
+            const addComment = (type, id) => {
+                const key = `${type}-${id}`;
+                const comment = commentText[key];
+                if (!comment || !comment.trim()) { alert('कमेंट लिहा'); return; }
+                
+                const newComment = {
+                    id: Date.now(),
+                    text: comment,
+                    by: currentUser.name,
+                    date: new Date().toLocaleDateString('mr-IN')
+                };
+
+                if (type === 'complaint') {
+                    setComplaints(complaints.map(c => 
+                        c.id === id ? {...c, comments: [...(c.comments || []), newComment]} : c
+                    ));
+                } else if (type === 'update') {
+                    setUpdates(updates.map(u => 
+                        u.id === id ? {...u, comments: [...(u.comments || []), newComment]} : u
+                    ));
+                }
+
+                setCommentText({...commentText, [key]: ''});
+                alert('कमेंट जोडली!');
+            };
+
+            const toggleLike = (id) => {
+                setComplaints(complaints.map(c => {
+                    if (c.id === id) {
+                        const hasLiked = c.likedBy?.includes(currentUser.mobile);
+                        return {
+                            ...c,
+                            likes: hasLiked ? (c.likes - 1) : (c.likes + 1),
+                            likedBy: hasLiked ? c.likedBy.filter(m => m !== currentUser.mobile) : [...(c.likedBy || []), currentUser.mobile]
+                        };
+                    }
+                    return c;
+                }));
+            };
+
+            const deleteComment = (type, itemId, commentId) => {
+                if (!confirm('कमेंट डिलीट करायचं का?')) return;
+                if (type === 'complaint') {
+                    setComplaints(complaints.map(c => 
+                        c.id === itemId ? {...c, comments: c.comments.filter(cm => cm.id !== commentId)} : c
+                    ));
+                } else if (type === 'update') {
+                    setUpdates(updates.map(u => 
+                        u.id === itemId ? {...u, comments: u.comments.filter(cm => cm.id !== commentId)} : u
+                    ));
+                }
+                alert('कमेंट डिलीट झाली!');
+            };
+
+            const changePassword = () => {
+                if (!passwordChangeData.new) { alert('नवीन पासवर्ड टाका'); return; }
+                if (userType === 'admin') {
+                    if (passwordChangeData.current !== credentials.admin.password) { alert('सध्याचा पासवर्ड चुकीचा!'); return; }
+                    setCredentials({...credentials, admin: {...credentials.admin, password: passwordChangeData.new}});
+                    alert('Admin पासवर्ड बदलला!');
+                } else if (userType === 'gov') {
+                    if (passwordChangeData.current !== credentials.gov.password) { alert('सध्याचा पासवर्ड चुकीचा!'); return; }
+                    setCredentials({...credentials, gov: {...credentials.gov, password: passwordChangeData.new}});
+                    alert('प्रशासन पासवर्ड बदलला!');
+                } else {
+                    const user = users.find(u => u.mobile === currentUser.mobile);
+                    if (!user || passwordChangeData.current !== user.password) { alert('सध्याचा पासवर्ड चुकीचा!'); return; }
+                    setUsers(users.map(u => u.mobile === currentUser.mobile ? {...u, password: passwordChangeData.new} : u));
+                    alert('पासवर्ड बदलला!');
+                }
+                setShowPasswordChange(false);
+                setPasswordChangeData({ current: '', new: '' });
+            };
+
+            const approveComplaint = (id) => {
+                setComplaints(complaints.map(c => c.id === id ? {...c, approved: true} : c));
+                alert('मंजूर!');
+            };
+
+            const blockUser = (mobile) => {
+                if (confirm('Block करायचं का?')) {
+                    setBlockedUsers([...blockedUsers, mobile]);
+                    alert('User Blocked!');
+                }
+            };
+
+            const unblockUser = (mobile) => {
+                setBlockedUsers(blockedUsers.filter(m => m !== mobile));
+                alert('Unblocked!');
+            };
+
+            const deleteItem = (type, id) => {
+                if (!confirm('डिलीट करायचं का?')) return;
+                switch(type) {
+                    case 'banner': setAdBanners(adBanners.filter(b => b.id !== id)); break;
+                    case 'scheme': setSchemes(schemes.filter(s => s.id !== id)); break;
+                    case 'update': setUpdates(updates.filter(u => u.id !== id)); break;
+                    case 'personality': setPersonalities(personalities.filter(p => p.id !== id)); break;
+                    case 'phone': setPhones(phones.filter(p => p.id !== id)); break;
+                    case 'notice': setNotices(notices.filter(n => n.id !== id)); break;
+                    case 'complaint': setComplaints(complaints.filter(c => c.id !== id)); break;
+                }
+                alert('डिलीट झाले!');
+            };
+
+            const nextSlide = () => {
+                setCurrentSlide((prev) => (prev + 1) % adBanners.length);
+                setAutoSlide(false);
+                setTimeout(() => setAutoSlide(true), 5000);
+            };
+
+            const prevSlide = () => {
+                setCurrentSlide((prev) => (prev - 1 + adBanners.length) % adBanners.length);
+                setAutoSlide(false);
+                setTimeout(() => setAutoSlide(true), 5000);
+            };
+
+            // Contact Admin functions
+            const sendContactMessage = () => {
+                if (!newContactMsg.message.trim()) { alert('संदेश लिहा!'); return; }
+                const newMessages = [...contactMessages, {
+                    id: Date.now(),
+                    message: newContactMsg.message,
+                    file: newContactMsg.file,
+                    by: currentUser.name,
+                    byMobile: currentUser.mobile,
+                    date: new Date().toLocaleDateString('mr-IN'),
+                    time: new Date().toLocaleTimeString('mr-IN'),
+                    replies: []
+                }];
+                setContactMessages(newMessages);
+                setNewContactMsg({ message: '', file: '' });
+                alert('संदेश पाठवला!');
+            };
+
+            const replyToContact = (msgId, replyText, replyFile) => {
+                if (!replyText.trim() && !replyFile) { alert('Reply लिहा!'); return; }
+                setContactMessages(contactMessages.map(msg => 
+                    msg.id === msgId ? {
+                        ...msg,
+                        replies: [...(msg.replies || []), {
+                            id: Date.now(),
+                            text: replyText,
+                            file: replyFile,
+                            by: 'Admin',
+                            date: new Date().toLocaleDateString('mr-IN'),
+                            time: new Date().toLocaleTimeString('mr-IN')
+                        }]
+                    } : msg
+                ));
+                alert('Reply पाठवला!');
+            };
+
+            const deleteContactMessage = (msgId) => {
+                if (!confirm('Delete करायचं का?')) return;
+                setContactMessages(contactMessages.filter(m => m.id !== msgId));
+                alert('Delete झाला!');
+            };
+
+            if (!isLoggedIn) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                            <div className="text-center mb-6">
+                                <h1 className="text-2xl font-bold text-pink-700">स्वच्छ व सुंदर</h1>
+                                <h1 className="text-3xl font-bold text-pink-700 mb-4">अस कळंब माझं गाव</h1>
+                            </div>
+
+                            {authScreen === 'login' && (
+                                <form onSubmit={handleLogin} className="space-y-4">
+                                    <h2 className="text-xl font-bold text-center">Login</h2>
+                                    <input type="text" value={loginData.mobile} onChange={(e) => setLoginData({...loginData, mobile: e.target.value})}
+                                        placeholder="मोबाइल नंबर / ID" className="w-full px-4 py-3 border-2 rounded-lg" required />
+                                    <input type="password" value={loginData.password} onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                                        placeholder="पासवर्ड (Master: 0000)" className="w-full px-4 py-3 border-2 rounded-lg" required />
+                                    <button type="submit" className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold">Login</button>
+                                    <button type="button" onClick={() => setAuthScreen('register')} className="w-full text-blue-600">नवीन नोंदणी →</button>
+                                    <p className="text-xs text-center text-gray-500">पासवर्ड विसरलात? Master Password: 0000</p>
+                                </form>
+                            )}
+
+                            {authScreen === 'register' && (
+                                <form onSubmit={handleRegister} className="space-y-4">
+                                    <h2 className="text-xl font-bold text-center">Register</h2>
+                                    <input type="text" value={registerData.name} onChange={(e) => setRegisterData({...registerData, name: e.target.value})}
+                                        placeholder="नाव" className="w-full px-4 py-3 border-2 rounded-lg" required />
+                                    <input type="tel" value={registerData.mobile} onChange={(e) => setRegisterData({...registerData, mobile: e.target.value})}
+                                        placeholder="मोबाइल नंबर" maxLength="10" className="w-full px-4 py-3 border-2 rounded-lg" required />
+                                    <input type="password" value={registerData.password} onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
+                                        placeholder="पासवर्ड (4 अंकी)" maxLength="4" className="w-full px-4 py-3 border-2 rounded-lg" required />
+                                    <button type="submit" className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold">Register</button>
+                                    <button type="button" onClick={() => setAuthScreen('login')} className="w-full text-blue-600">← Login</button>
+                                </form>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            const sections = userType === 'gov' ? [
+                { id: 'schemes', label: 'योजना', icon: '📄' }
+            ] : [
+                { id: 'home', label: 'मुख्य', icon: '🏠' },
+                { id: 'schemes', label: 'योजना', icon: '📄' },
+                { id: 'updates', label: 'बातम्या', icon: '📢' },
+                { id: 'complaints', label: 'तक्रार', icon: '🚨' },
+                { id: 'personalities', label: 'व्यक्ती', icon: '👥' },
+                { id: 'phones', label: 'फोन', icon: '📞' }
+            ];
+
+            return (
+                <div className="min-h-screen bg-gray-50 pb-24">
+                    {loading && (
+                        <div className="fixed inset-0 bg-black bg-opacity-80 z-[100] flex items-center justify-center">
+                            <div className="bg-white p-8 rounded-2xl text-center">
+                                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-pink-600 mx-auto mb-4"></div>
+                                <p className="text-lg font-bold">{loadingMsg}</p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <header className="bg-pink-600 text-white shadow-lg sticky top-0 z-50">
+                        <div className="px-4 py-3 flex justify-between items-center">
+                            <button onClick={() => setShowMenu(!showMenu)} className="text-2xl">☰</button>
+                            <div className="text-right">
+                                <h1 className="text-lg font-bold">माझं गाव - कळंब</h1>
+                                <p className="text-xs">{currentUser.name}</p>
+                            </div>
+                        </div>
+                    </header>
+
+                    {notices.length > 0 && (
+                        <div className="marquee">
+                            <span>{notices.map(n => n.text).join(' • ')}</span>
+                        </div>
+                    )}
+
+                    {showMenu && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowMenu(false)}>
+                            <div className="bg-white w-64 h-full" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 border-b bg-pink-600 text-white">
+                                    <p className="font-bold">{currentUser.name}</p>
+                                    <p className="text-xs">{userType === 'admin' ? 'Admin' : userType === 'gov' ? 'प्रशासन' : 'User'}</p>
+                                </div>
+                                <nav className="p-2">
+                                    {userType === 'admin' && (
+                                        <>
+                                            <button onClick={() => {setCurrentSection('pending'); setShowMenu(false);}} className="w-full text-left px-4 py-3 hover:bg-gray-100">
+                                                ⏳ Pending ({complaints.filter(c => !c.approved).length})
+                                            </button>
+                                            <button onClick={() => {setCurrentSection('loggedUsers'); setShowMenu(false);}} className="w-full text-left px-4 py-3 hover:bg-gray-100">
+                                                👥 Logged Users ({loggedInUsers.length})
+                                            </button>
+                                            <button onClick={() => {setCurrentSection('users'); setShowMenu(false);}} className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b mb-2 pb-3">
+                                                👥 All Users ({users.length})
+                                            </button>
+                                        </>
+                                    )}
+                                    {userType === 'user' && (
+                                        <>
+                                            <button onClick={() => {setCurrentSection('addComplaint'); setShowMenu(false);}} className="w-full text-left px-4 py-3 hover:bg-gray-100">
+                                                ✍️ तक्रार नोंदवा
+                                            </button>
+                                            <button onClick={() => {setCurrentSection('contactAdmin'); setShowMenu(false);}} className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b mb-2 pb-3">
+                                                💬 आमच्याशी संपर्क
+                                            </button>
+                                        </>
+                                    )}
+                                    {userType === 'admin' && (
+                                        <button onClick={() => {setCurrentSection('contactAdmin'); setShowMenu(false);}} className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b mb-2 pb-3">
+                                            💬 संपर्क संदेश ({contactMessages.length})
+                                        </button>
+                                    )}
+                                    <button onClick={() => {setShowPasswordChange(true); setShowMenu(false);}} className="w-full text-left px-4 py-3 hover:bg-gray-100">
+                                        🔑 पासवर्ड बदला
+                                    </button>
+                                    <button onClick={() => {setCurrentSection('terms'); setShowMenu(false);}} className="w-full text-left px-4 py-3 hover:bg-gray-100">
+                                        📋 नियम व अटी
+                                    </button>
+                                    <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-purple-600 hover:bg-gray-100">🚪 Logout</button>
+                                </nav>
+                            </div>
+                        </div>
+                    )}
+
+                    {showPasswordChange && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setShowPasswordChange(false)}>
+                            <div className="bg-white rounded-lg p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                                <h3 className="font-bold text-xl mb-4">पासवर्ड बदला</h3>
+                                <input type="password" value={passwordChangeData.current} onChange={(e) => setPasswordChangeData({...passwordChangeData, current: e.target.value})}
+                                    placeholder="सध्याचा पासवर्ड" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                <input type="password" value={passwordChangeData.new} onChange={(e) => setPasswordChangeData({...passwordChangeData, new: e.target.value})}
+                                    placeholder="नवीन पासवर्ड" className="w-full px-4 py-3 border rounded-lg mb-4" />
+                                <div className="flex gap-2">
+                                    <button onClick={changePassword} className="flex-1 bg-pink-600 text-white py-3 rounded-lg font-bold">बदला ✓</button>
+                                    <button onClick={() => {setShowPasswordChange(false); setPasswordChangeData({ current: '', new: '' });}} className="flex-1 bg-gray-300 py-3 rounded-lg font-bold">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <main className="p-4">
+                        {currentSection === 'home' && (
+                            <div className="space-y-4">
+                                {(userType === 'admin' || userType === 'gov') && (
+                                    <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+                                        <h3 className="font-bold text-lg mb-3">Admin Settings</h3>
+                                        
+                                        {userType === 'admin' && (
+                                            <>
+                                                <div className="mb-4">
+                                                    <label className="block font-semibold mb-2">मुख्य व्हिडीओ</label>
+                                                    
+                                                    <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                                                        <p className="font-semibold text-sm mb-2">Option 1: फाईल Upload (मोबाईल मधून)</p>
+                                                        <input type="file" accept="video/*" onChange={(e) => handleVideoUpload(e, setMainVideo)}
+                                                            className="w-full px-3 py-2 border rounded-lg" />
+                                                        <p className="text-xs text-gray-500 mt-1">⚠️ मोठ्या video साठी थोडा वेळ लागेल</p>
+                                                    </div>
+                                                    
+                                                    <div className="bg-green-50 p-3 rounded-lg">
+                                                        <p className="font-semibold text-sm mb-2">Option 2: YouTube URL</p>
+                                                        <input type="url" value={mainVideo && !mainVideo.startsWith('data:') ? mainVideo : ''} 
+                                                            onChange={(e) => setMainVideo(e.target.value)}
+                                                            placeholder="YouTube URL" className="w-full px-3 py-2 border rounded-lg" />
+                                                    </div>
+                                                    
+                                                    {mainVideo && mainVideo.startsWith('data:') && (
+                                                        <p className="text-sm text-green-600 mt-2">✓ व्हिडीओ uploaded</p>
+                                                    )}
+                                                </div>
+
+                                                <div className="mb-4 border-t pt-4">
+                                                    <label className="block font-semibold mb-2">जाहिरात बॅनर</label>
+                                                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setNewBanner)}
+                                                        className="w-full px-3 py-2 border rounded-lg mb-2" />
+                                                    <p className="text-xs text-gray-500 mb-2">📸 मोबाईल मधून फोटो upload करा</p>
+                                                    {newBanner && <img src={newBanner} className="w-full h-32 object-cover rounded mb-2" />}
+                                                    <button onClick={addBanner} className="w-full bg-blue-600 text-white py-2 rounded-lg mb-3">बॅनर जोडा</button>
+                                                    {adBanners.map((b, i) => (
+                                                        <div key={b.id} className="flex items-center gap-2 bg-gray-50 p-2 rounded mb-2">
+                                                            <img src={b.url} className="w-16 h-16 object-cover rounded" />
+                                                            <span className="flex-1">बॅनर {i + 1}</span>
+                                                            <button onClick={() => deleteItem('banner', b.id)} className="text-purple-600">🗑️</button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+
+                                        <div className={userType === 'admin' ? 'border-t pt-4' : ''}>
+                                            <label className="block font-semibold mb-2">सूचना (जांभळी पट्टी)</label>
+                                            <input type="text" value={newNotice} onChange={(e) => setNewNotice(e.target.value)}
+                                                placeholder="सूचना लिहा" className="w-full px-3 py-2 border rounded-lg mb-2" />
+                                            <button onClick={addNotice} className="w-full bg-purple-600 text-white py-2 rounded-lg mb-3">सूचना जोडा</button>
+                                            {notices.map(n => (
+                                                <div key={n.id} className="flex justify-between items-center bg-gray-50 p-2 rounded mb-2">
+                                                    <span className="flex-1 text-sm">{n.text}</span>
+                                                    <button onClick={() => deleteItem('notice', n.id)} className="text-purple-600">🗑️</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {mainVideo && (
+                                    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                                        {mainVideo.includes('youtube.com') || mainVideo.includes('youtu.be') ? (
+                                            <iframe src={mainVideo.replace('watch?v=', 'embed/')} className="w-full h-64" allowFullScreen />
+                                        ) : (
+                                            <video src={mainVideo} controls className="w-full" />
+                                        )}
+                                    </div>
+                                )}
+
+                                {adBanners.length > 0 && (
+                                    <div className="bg-white rounded-lg shadow-lg overflow-hidden relative">
+                                        <div className="slider">
+                                            {adBanners.map((b, i) => (
+                                                <div key={b.id} className={`slide ${i === currentSlide ? 'active' : ''}`}>
+                                                    <img src={b.url} alt="" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                        
+                                        {adBanners.length > 1 && (
+                                            <>
+                                                <div className="slider-arrows">
+                                                    <button onClick={prevSlide} className="bg-white bg-opacity-70 text-black rounded-full w-10 h-10 flex items-center justify-center text-2xl font-bold">‹</button>
+                                                    <button onClick={nextSlide} className="bg-white bg-opacity-70 text-black rounded-full w-10 h-10 flex items-center justify-center text-2xl font-bold">›</button>
+                                                </div>
+                                                
+                                                <div className="slider-controls">
+                                                    {adBanners.map((_, i) => (
+                                                        <button key={i} onClick={() => {setCurrentSlide(i); setAutoSlide(false); setTimeout(() => setAutoSlide(true), 5000);}}
+                                                            className={`w-3 h-3 rounded-full ${i === currentSlide ? 'bg-pink-600 w-8' : 'bg-white'}`} />
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {currentSection === 'schemes' && (
+                            <div className="space-y-4">
+                                {(userType === 'admin' || userType === 'gov') && (
+                                    <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+                                        <h3 className="font-bold text-lg mb-3 text-blue-700">नवीन योजना जोडा</h3>
+                                        <input type="text" value={newScheme.title} onChange={(e) => setNewScheme({...newScheme, title: e.target.value})}
+                                            placeholder="योजनेचं नाव" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        <textarea value={newScheme.description} onChange={(e) => setNewScheme({...newScheme, description: e.target.value})}
+                                            placeholder="योजनेची संपूर्ण माहिती" rows="5" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        <button onClick={addScheme} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-lg">योजना जोडा ✓</button>
+                                    </div>
+                                )}
+
+                                <h2 className="text-2xl font-bold text-blue-700">शासकीय योजना</h2>
+                                {schemes.map(s => (
+                                    <div key={s.id} className="bg-white rounded-lg shadow-lg p-4">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-lg text-blue-700">{s.title}</h3>
+                                                <p className="text-gray-700 mt-2 whitespace-pre-line">{s.description}</p>
+                                            </div>
+                                            {userType === 'admin' && (
+                                                <button onClick={() => deleteItem('scheme', s.id)} className="text-purple-600 ml-2 text-xl">🗑️</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                                {schemes.length === 0 && <p className="text-center py-12 text-gray-500">अद्याप कोणतीही योजना नाही</p>}
+                            </div>
+                        )}
+
+                        {currentSection === 'updates' && (
+                            <div className="space-y-4">
+                                {userType === 'admin' && (
+                                    <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+                                        <h3 className="font-bold text-lg mb-3 text-orange-700">नवीन बातमी जोडा</h3>
+                                        <input type="text" value={newUpdate.title} onChange={(e) => setNewUpdate({...newUpdate, title: e.target.value})}
+                                            placeholder="शीर्षक" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        
+                                        <div className="mb-3">
+                                            <label className="block font-semibold mb-2">📸 फोटो (Optional)</label>
+                                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setNewUpdate({...newUpdate, photo: val}))}
+                                                className="w-full px-4 py-3 border rounded-lg" />
+                                            {newUpdate.photo && <img src={newUpdate.photo} className="w-full rounded-lg mt-3" />}
+                                        </div>
+                                        
+                                        <div className="mb-3">
+                                            <label className="block font-semibold mb-2">🎥 व्हिडीओ (Optional)</label>
+                                            
+                                            <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                                                <p className="font-semibold text-sm mb-2">Option 1: फाईल Upload (मोबाईल मधून)</p>
+                                                <input type="file" accept="video/*" onChange={(e) => handleVideoUpload(e, (val) => setNewUpdate({...newUpdate, video: val}))}
+                                                    className="w-full px-3 py-2 border rounded-lg" />
+                                                <p className="text-xs text-gray-500 mt-1">⚠️ मोठ्या video साठी थोडा वेळ लागेल</p>
+                                            </div>
+                                            
+                                            <div className="bg-green-50 p-3 rounded-lg">
+                                                <p className="font-semibold text-sm mb-2">Option 2: YouTube URL</p>
+                                                <input type="url" value={newUpdate.video && !newUpdate.video.startsWith('data:') ? newUpdate.video : ''} 
+                                                    onChange={(e) => setNewUpdate({...newUpdate, video: e.target.value})}
+                                                    placeholder="YouTube URL paste करा" className="w-full px-3 py-2 border rounded-lg" />
+                                            </div>
+                                            
+                                            {newUpdate.video && newUpdate.video.startsWith('data:') && (
+                                                <p className="text-sm text-green-600 mt-2">✓ व्हिडीओ uploaded</p>
+                                            )}
+                                        </div>
+                                        
+                                        <textarea value={newUpdate.content} onChange={(e) => setNewUpdate({...newUpdate, content: e.target.value})}
+                                            placeholder="बातमीचा तपशील" rows="4" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        <button onClick={addUpdate} className="w-full bg-orange-600 text-white py-3 rounded-lg font-bold text-lg">बातमी जोडा ✓</button>
+                                    </div>
+                                )}
+
+                                <h2 className="text-2xl font-bold text-orange-700">बातम्या</h2>
+                                {updates.map(u => (
+                                    <div key={u.id} className="bg-white rounded-lg shadow-lg p-4">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <h3 className="font-bold text-xl flex-1">{u.title}</h3>
+                                            {userType === 'admin' && (
+                                                <button onClick={() => deleteItem('update', u.id)} className="text-purple-600 ml-2 text-xl">🗑️</button>
+                                            )}
+                                        </div>
+                                        {u.photo && <img src={u.photo} className="w-full rounded-lg mb-3" />}
+                                        {u.video && (
+                                            <div className="mb-3">
+                                                {u.video.includes('youtube.com') || u.video.includes('youtu.be') ? (
+                                                    <iframe src={u.video.replace('watch?v=', 'embed/')} className="w-full h-64" allowFullScreen />
+                                                ) : (
+                                                    <video src={u.video} controls className="w-full" />
+                                                )}
+                                            </div>
+                                        )}
+                                        <p className="text-gray-700 mb-2">{u.content}</p>
+                                        <p className="text-xs text-gray-500">{u.date}</p>
+                                        
+                                        <div className="border-t pt-3 mt-3">
+                                            <button onClick={() => setShowComments({...showComments, [`update-${u.id}`]: !showComments[`update-${u.id}`]})}
+                                                className="text-blue-600 font-semibold text-sm mb-2">💬 Comments ({(u.comments || []).length})</button>
+                                            
+                                            {showComments[`update-${u.id}`] && (
+                                                <div className="space-y-2 mt-3">
+                                                    <div className="flex gap-2">
+                                                        <input type="text" value={commentText[`update-${u.id}`] || ''} 
+                                                            onChange={(e) => setCommentText({...commentText, [`update-${u.id}`]: e.target.value})}
+                                                            placeholder="कमेंट..." className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                                                            onKeyPress={(e) => e.key === 'Enter' && addComment('update', u.id)} />
+                                                        <button onClick={() => addComment('update', u.id)} className="px-3 py-2 bg-blue-600 text-white rounded-lg">➤</button>
+                                                    </div>
+                                                    
+                                                    {u.comments && u.comments.length > 0 && (
+                                                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                                                            {u.comments.map(comment => (
+                                                                <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
+                                                                    <div className="flex justify-between items-start mb-1">
+                                                                        <span className="font-semibold text-sm text-blue-700">{comment.by}</span>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-xs text-gray-500">{comment.date}</span>
+                                                                            {userType === 'admin' && (
+                                                                                <button onClick={() => deleteComment('update', u.id, comment.id)} className="text-purple-600 text-xs">🗑️</button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <p className="text-sm text-gray-700">{comment.text}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {currentSection === 'addComplaint' && (
+                            <div className="space-y-4">
+                                <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+                                    <h3 className="font-bold text-lg mb-3 text-purple-700">नवीन तक्रार नोंदवा</h3>
+                                    <input type="text" value={newComplaint.title} onChange={(e) => setNewComplaint({...newComplaint, title: e.target.value})}
+                                        placeholder="तक्रार विषय" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                    <textarea value={newComplaint.description} onChange={(e) => setNewComplaint({...newComplaint, description: e.target.value})}
+                                        placeholder="तपशील" rows="4" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                    
+                                    <div className="mb-3">
+                                        <label className="block font-semibold mb-2">📸 फोटो (Optional)</label>
+                                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setNewComplaint({...newComplaint, photo: val}))}
+                                            className="w-full px-4 py-3 border rounded-lg" />
+                                        {newComplaint.photo && <img src={newComplaint.photo} className="w-full rounded-lg mt-3" />}
+                                    </div>
+                                    
+                                    <button onClick={addComplaint} className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold text-lg">तक्रार नोंदवा ✓</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {currentSection === 'complaints' && (
+                            <div className="space-y-4">
+                                <h2 className="text-2xl font-bold text-purple-700">तक्रारी</h2>
+                                {complaints.filter(c => c.approved).map(c => (
+                                    <div key={c.id} className="bg-white rounded-lg shadow-lg p-4">
+                                        {c.photo && <img src={c.photo} className="w-full rounded-lg mb-3" />}
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-lg text-purple-700">{c.title}</h3>
+                                                <p className="text-xs text-gray-500">By: {c.by} | {c.date}</p>
+                                            </div>
+                                            {userType === 'admin' && (
+                                                <button onClick={() => deleteItem('complaint', c.id)} className="text-purple-600 ml-2 text-xl">🗑️</button>
+                                            )}
+                                        </div>
+                                        <p className="text-gray-700 mb-3">{c.description}</p>
+                                        
+                                        <div className="border-t pt-3 flex items-center gap-4">
+                                            <button onClick={() => toggleLike(c.id)} className={`flex items-center gap-1 ${c.likedBy?.includes(currentUser.mobile) ? 'text-blue-600' : 'text-gray-600'}`}>
+                                                👍 {c.likes || 0}
+                                            </button>
+                                            <button onClick={() => setShowComments({...showComments, [`complaint-${c.id}`]: !showComments[`complaint-${c.id}`]})}
+                                                className="text-blue-600 font-semibold text-sm">💬 Comments ({(c.comments || []).length})</button>
+                                        </div>
+                                        
+                                        {showComments[`complaint-${c.id}`] && (
+                                            <div className="space-y-2 mt-3">
+                                                <div className="flex gap-2">
+                                                    <input type="text" value={commentText[`complaint-${c.id}`] || ''} 
+                                                        onChange={(e) => setCommentText({...commentText, [`complaint-${c.id}`]: e.target.value})}
+                                                        placeholder="कमेंट..." className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                                                        onKeyPress={(e) => e.key === 'Enter' && addComment('complaint', c.id)} />
+                                                    <button onClick={() => addComment('complaint', c.id)} className="px-3 py-2 bg-blue-600 text-white rounded-lg">➤</button>
+                                                </div>
+                                                
+                                                {c.comments && c.comments.length > 0 && (
+                                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                                        {c.comments.map(comment => (
+                                                            <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
+                                                                <div className="flex justify-between items-start mb-1">
+                                                                    <span className="font-semibold text-sm text-blue-700">{comment.by}</span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-xs text-gray-500">{comment.date}</span>
+                                                                        {userType === 'admin' && (
+                                                                            <button onClick={() => deleteComment('complaint', c.id, comment.id)} className="text-purple-600 text-xs">🗑️</button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-sm text-gray-700">{comment.text}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {currentSection === 'personalities' && (
+                            <div className="space-y-4">
+                                {userType === 'admin' && (
+                                    <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+                                        <h3 className="font-bold text-lg mb-3 text-purple-700">नवीन व्यक्तिमत्व जोडा</h3>
+                                        <input type="text" value={newPersonality.name} onChange={(e) => setNewPersonality({...newPersonality, name: e.target.value})}
+                                            placeholder="नाव" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        <textarea value={newPersonality.description} onChange={(e) => setNewPersonality({...newPersonality, description: e.target.value})}
+                                            placeholder="माहिती" rows="3" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        
+                                        <div className="mb-3">
+                                            <label className="block font-semibold mb-2">📸 फोटो</label>
+                                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, (val) => setNewPersonality({...newPersonality, photo: val}))}
+                                                className="w-full px-4 py-3 border rounded-lg" />
+                                            {newPersonality.photo && <img src={newPersonality.photo} className="w-20 h-20 object-cover rounded-full mx-auto mt-3" />}
+                                        </div>
+                                        
+                                        <button onClick={addPersonality} className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold text-lg">व्यक्तिमत्व जोडा ✓</button>
+                                    </div>
+                                )}
+
+                                <h2 className="text-2xl font-bold text-purple-700">प्रमुख व्यक्तिमत्व</h2>
+                                {personalities.map(p => (
+                                    <div key={p.id} className="bg-white rounded-lg shadow-lg p-4 text-center relative">
+                                        {userType === 'admin' && (
+                                            <button onClick={() => deleteItem('personality', p.id)} className="absolute top-2 right-2 text-purple-600 text-xl">🗑️</button>
+                                        )}
+                                        {p.photo && <img src={p.photo} className="w-40 h-40 object-cover rounded-full mx-auto mb-3" />}
+                                        <h3 className="font-bold text-lg text-purple-700">{p.name}</h3>
+                                        <p className="text-gray-700 mt-2">{p.description}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {currentSection === 'phones' && (
+                            <div className="space-y-4">
+                                {userType === 'admin' && (
+                                    <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+                                        <h3 className="font-bold text-lg mb-3 text-pink-700">नवीन फोन नंबर जोडा</h3>
+                                        <input type="text" value={newPhone.name} onChange={(e) => setNewPhone({...newPhone, name: e.target.value})}
+                                            placeholder="नाव" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        <input type="tel" value={newPhone.number} onChange={(e) => setNewPhone({...newPhone, number: e.target.value})}
+                                            placeholder="फोन नंबर" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        <input type="text" value={newPhone.category} onChange={(e) => setNewPhone({...newPhone, category: e.target.value})}
+                                            placeholder="श्रेणी (optional)" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        <button onClick={addPhone} className="w-full bg-pink-600 text-white py-3 rounded-lg font-bold text-lg">फोन नंबर जोडा ✓</button>
+                                    </div>
+                                )}
+
+                                <h2 className="text-2xl font-bold text-pink-700">महत्वाचे फोन नंबर</h2>
+                                {phones.map(p => (
+                                    <div key={p.id} className="bg-white rounded-lg shadow-lg p-4">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-lg">{p.name}</h3>
+                                                {p.category && <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded">{p.category}</span>}
+                                                <a href={`tel:${p.number}`} className="text-2xl font-bold text-blue-600 block mt-2">{p.number}</a>
+                                            </div>
+                                            {userType === 'admin' && (
+                                                <button onClick={() => deleteItem('phone', p.id)} className="text-purple-600 ml-2 text-xl">🗑️</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {currentSection === 'pending' && userType === 'admin' && (
+                            <div className="space-y-4">
+                                <h2 className="text-2xl font-bold text-yellow-600">Pending Approval</h2>
+                                {complaints.filter(c => !c.approved).map(c => (
+                                    <div key={c.id} className="bg-white rounded-lg shadow-lg p-4">
+                                        {c.photo && <img src={c.photo} className="w-full rounded-lg mb-3" />}
+                                        <h3 className="font-bold text-lg">{c.title}</h3>
+                                        <p className="text-sm text-gray-600">By: {c.by}</p>
+                                        <p className="text-gray-700 mt-2">{c.description}</p>
+                                        <div className="flex gap-2 mt-3">
+                                            <button onClick={() => approveComplaint(c.id)} className="flex-1 bg-pink-600 text-white py-2 rounded-lg font-bold">✓ मंजूर</button>
+                                            <button onClick={() => deleteItem('complaint', c.id)} className="flex-1 bg-purple-600 text-white py-2 rounded-lg font-bold">✗ नाकार</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {complaints.filter(c => !c.approved).length === 0 && <p className="text-center py-12 text-gray-500">कोणतीही pending तक्रार नाही</p>}
+                            </div>
+                        )}
+
+                        {currentSection === 'loggedUsers' && userType === 'admin' && (
+                            <div className="space-y-4">
+                                <h2 className="text-2xl font-bold">Logged In Users ({loggedInUsers.length})</h2>
+                                {loggedInUsers.map((user, idx) => (
+                                    <div key={idx} className="bg-white rounded-lg shadow p-4">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="font-bold">{user.name}</p>
+                                                <p className="text-sm text-gray-600">{user.mobile}</p>
+                                                <p className="text-xs text-gray-500">Login: {user.loginTime}</p>
+                                            </div>
+                                            {blockedUsers.includes(user.mobile) ? (
+                                                <button onClick={() => unblockUser(user.mobile)} className="bg-pink-600 text-white px-3 py-1 rounded text-sm">Unblock</button>
+                                            ) : (
+                                                <button onClick={() => blockUser(user.mobile)} className="bg-purple-600 text-white px-3 py-1 rounded text-sm">Block</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                                {loggedInUsers.length === 0 && <p className="text-center py-12 text-gray-500">अद्याप कोणीही login केलेले नाही</p>}
+                            </div>
+                        )}
+
+                        {currentSection === 'users' && userType === 'admin' && (
+                            <div className="space-y-4">
+                                <h2 className="text-2xl font-bold">All Registered Users ({users.length})</h2>
+                                {users.map(u => (
+                                    <div key={u.id} className="bg-white rounded-lg shadow p-4 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-bold">{u.name}</p>
+                                            <p className="text-sm text-gray-600">{u.mobile}</p>
+                                        </div>
+                                        {blockedUsers.includes(u.mobile) ? (
+                                            <button onClick={() => unblockUser(u.mobile)} className="bg-pink-600 text-white px-3 py-1 rounded">Unblock</button>
+                                        ) : (
+                                            <button onClick={() => blockUser(u.mobile)} className="bg-purple-600 text-white px-3 py-1 rounded">Block</button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {currentSection === 'contactAdmin' && (
+                            <div className="space-y-4">
+                                <h2 className="text-2xl font-bold text-blue-700">
+                                    {userType === 'admin' ? 'संपर्क संदेश' : 'आमच्याशी संपर्क'}
+                                </h2>
+
+                                {userType === 'user' && (
+                                    <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+                                        <h3 className="font-bold text-lg mb-3 text-blue-700">Admin ला संदेश पाठवा</h3>
+                                        <textarea value={newContactMsg.message} onChange={(e) => setNewContactMsg({...newContactMsg, message: e.target.value})}
+                                            placeholder="तुमचा संदेश, माहिती किंवा सूचना..." rows="4" className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        
+                                        <label className="block font-semibold mb-2">📎 फाईल किंवा फोटो/व्हिडीओ (Optional)</label>
+                                        <input type="file" accept="image/*,video/*" onChange={(e) => handleImageUpload(e, (val) => setNewContactMsg({...newContactMsg, file: val}))}
+                                            className="w-full px-4 py-3 border rounded-lg mb-3" />
+                                        
+                                        {newContactMsg.file && (
+                                            newContactMsg.file.startsWith('data:image') ? (
+                                                <img src={newContactMsg.file} className="w-full rounded-lg mb-3" />
+                                            ) : (
+                                                <video src={newContactMsg.file} controls className="w-full rounded-lg mb-3" />
+                                            )
+                                        )}
+                                        
+                                        <button onClick={sendContactMessage} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-lg">संदेश पाठवा ✓</button>
+                                    </div>
+                                )}
+
+                                <div className="space-y-4">
+                                    {contactMessages
+                                        .filter(msg => userType === 'admin' || msg.byMobile === currentUser.mobile)
+                                        .sort((a, b) => b.id - a.id)
+                                        .map(msg => (
+                                        <div key={msg.id} className="bg-white rounded-lg shadow-lg p-4">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <p className="font-bold text-blue-700">{msg.by}</p>
+                                                    <p className="text-xs text-gray-500">{msg.date} | {msg.time}</p>
+                                                </div>
+                                                {userType === 'admin' && (
+                                                    <button onClick={() => deleteContactMessage(msg.id)} className="text-purple-600">🗑️</button>
+                                                )}
+                                            </div>
+                                            
+                                            <p className="text-gray-700 mb-3 whitespace-pre-line">{msg.message}</p>
+                                            
+                                            {msg.file && (
+                                                <div className="mb-3">
+                                                    {msg.file.startsWith('data:image') ? (
+                                                        <img src={msg.file} className="w-full rounded-lg" />
+                                                    ) : (
+                                                        <video src={msg.file} controls className="w-full rounded-lg" />
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {msg.replies && msg.replies.length > 0 && (
+                                                <div className="bg-green-50 rounded-lg p-3 mt-3 space-y-2">
+                                                    {msg.replies.map(reply => (
+                                                        <div key={reply.id} className="border-l-4 border-green-600 pl-3">
+                                                            <p className="text-xs text-gray-500 font-semibold">Admin Reply | {reply.date} | {reply.time}</p>
+                                                            <p className="text-gray-700 mt-1">{reply.text}</p>
+                                                            {reply.file && (
+                                                                <div className="mt-2">
+                                                                    {reply.file.startsWith('data:image') ? (
+                                                                        <img src={reply.file} className="w-full rounded-lg" />
+                                                                    ) : (
+                                                                        <video src={reply.file} controls className="w-full rounded-lg" />
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {userType === 'admin' && (
+                                                <div className="mt-3 pt-3 border-t">
+                                                    <input type="text" placeholder="Reply..." id={`reply-${msg.id}`}
+                                                        className="w-full px-3 py-2 border rounded-lg mb-2" />
+                                                    <div className="flex gap-2">
+                                                        <input type="file" accept="image/*,video/*" id={`reply-file-${msg.id}`}
+                                                            className="flex-1 px-3 py-2 border rounded-lg text-sm" onChange={(e) => {
+                                                                const file = e.target.files[0];
+                                                                if (file) {
+                                                                    handleImageUpload(e, (val) => {
+                                                                        document.getElementById(`reply-file-data-${msg.id}`).value = val;
+                                                                    });
+                                                                }
+                                                            }} />
+                                                        <input type="hidden" id={`reply-file-data-${msg.id}`} />
+                                                        <button onClick={() => {
+                                                            const replyText = document.getElementById(`reply-${msg.id}`).value;
+                                                            const replyFile = document.getElementById(`reply-file-data-${msg.id}`).value;
+                                                            replyToContact(msg.id, replyText, replyFile);
+                                                            document.getElementById(`reply-${msg.id}`).value = '';
+                                                            document.getElementById(`reply-file-${msg.id}`).value = '';
+                                                            document.getElementById(`reply-file-data-${msg.id}`).value = '';
+                                                        }} className="px-4 py-2 bg-green-600 text-white rounded-lg">Reply ➤</button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {contactMessages.filter(msg => userType === 'admin' || msg.byMobile === currentUser.mobile).length === 0 && (
+                                        <p className="text-center py-12 text-gray-500">अद्याप कोणतेही संदेश नाहीत</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {currentSection === 'terms' && (
+                            <div className="space-y-4">
+                                <div className="bg-white rounded-lg shadow-lg p-6">
+                                    <h2 className="text-2xl font-bold text-purple-700 mb-4 text-center">नियम व अटी</h2>
+                                    
+                                    <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                                        <p className="text-center font-semibold text-lg mb-2">आपणास दुसऱ्या गावासाठी हे अॅप हवे असेल तर आमच्याशी संपर्क साधावा</p>
+                                    </div>
+
+                                    <div className="space-y-4 text-gray-700">
+                                        <p className="font-semibold text-lg">या अॅपच्या माध्यमातून तुम्हाला खालील माहिती मिळेल —</p>
+                                        
+                                        <div className="space-y-2 pl-4">
+                                            <p>✅ वाढदिवस व स्मृतिदिन माहिती</p>
+                                            <p>✅ मृत्यू व दशक्रिया बातमी</p>
+                                            <p>✅ गावातील चालू घडामोडी</p>
+                                            <p>✅ महत्वाच्या सूचना व घोषणा व प्रशासकीय योजना</p>
+                                        </div>
+
+                                        <div className="border-t pt-4 mt-4 space-y-3">
+                                            <p className="flex items-start gap-2">
+                                                <span className="text-orange-600 font-bold">🔹</span>
+                                                <span>कोणतीही कमेंट किंवा माहिती पोस्ट करताना कोणाच्या भावना दुखावणार नाहीत याची कृपया काळजी घ्यावी.</span>
+                                            </p>
+                                            <p className="flex items-start gap-2">
+                                                <span className="text-orange-600 font-bold">🔹</span>
+                                                <span>चुकीची, खोटी किंवा अपमानास्पद माहिती पोस्ट केल्यास त्यासाठी संबंधित व्यक्ती स्वतः जबाबदार राहील.</span>
+                                            </p>
+                                            <p className="flex items-start gap-2">
+                                                <span className="text-orange-600 font-bold">🔹</span>
+                                                <span>आपण कोणत्याही मोबाईल नंबरवरून Login केले असले तरी IP Address द्वारे तुमची ओळख पटू शकते व आवश्यक असल्यास कायदेशीर कारवाई होऊ शकते.</span>
+                                            </p>
+                                            <p className="flex items-start gap-2">
+                                                <span className="text-orange-600 font-bold">🔹</span>
+                                                <span className="font-bold">त्यामुळे अॅपचा वापर जबाबदारीने व योग्य पद्धतीने करावा.</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-40">
+                        <div className="grid grid-cols-6 gap-0">
+                            {sections.map(section => (
+                                <button key={section.id} onClick={() => setCurrentSection(section.id)}
+                                    className={`flex flex-col items-center justify-center py-2 ${currentSection === section.id ? 'text-pink-600 bg-pink-50' : 'text-gray-500'}`}>
+                                    <span className="text-2xl mb-1">{section.icon}</span>
+                                    <span className="text-[10px] font-semibold">{section.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
