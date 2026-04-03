@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>हॉटेल व्यवसाय हिशेब</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@300;400;500;600;700&family=Noto+Serif+Devanagari:wght@400;600;700&display=swap');
+
+  :root {
+    --primary: #1B5E20;
+    --primary-dark: #0A3D0A;
+    --primary-mid: #2E7D32;
+    --primary-light: #388E3C;
+    --primary-pale: #C8E6C9;
+    --primary-bg: #F1F8F1;
+    --accent: #4CAF50;
+    --surface: #FFFFFF;
+    --surface-2: #F6FAF6;
+    --surface-3: #EEF5EE;
+    --border: #C8DEC8;
+    --border-light: #E3F0E3;
+    --text-primary: #0D1F0D;
+    --text-secondary: #3A4F3A;
+    --text-muted: #6B7A6B;
+    --profit: #1B5E20;
+    --loss: #B71C1C;
+    --cash-color: #1565C0;
+    --credit-color: #E65100;
+    --shadow-sm: 0 1px 4px rgba(27,94,32,0.08);
+    --shadow-md: 0 3px 12px rgba(27,94,32,0.12);
+    --shadow-lg: 0 8px 32px rgba(27,94,32,0.14);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans Devanagari', sans-serif;
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ===== APP SHELL ===== */
+  .app-shell {
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--primary-bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,0,0,0.08);
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    background: var(--primary-dark);
+    padding: 16px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .topbar-title {
+    font-family: 'Noto Serif Devanagari', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: 0.3px;
+  }
+  .topbar-subtitle {
+    font-size: 11px;
+    color: var(--primary-pale);
+    margin-top: 2px;
+    opacity: 0.85;
+  }
+  .topbar-date-badge {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  /* ===== CONTENT AREA ===== */
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 80px;
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== BOTTOM NAV ===== */
+  .bottom-nav {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1.5px solid var(--border);
+    display: flex;
+    z-index: 100;
+    box-shadow: 0 -4px 16px rgba(27,94,32,0.1);
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 4px 8px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s;
+    gap: 4px;
+    position: relative;
+  }
+  .nav-item.active {
+    color: var(--primary);
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 2.5px;
+    background: var(--primary);
+    border-radius: 0 0 4px 4px;
+  }
+  .nav-icon {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .nav-item.active .nav-icon {
+    stroke-width: 2.2;
+  }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+  }
+  .card-header {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-mid) 100%);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.2px;
+  }
+  .card-header-icon {
+    width: 18px;
+    height: 18px;
+    stroke: rgba(255,255,255,0.7);
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .card-body { padding: 16px 18px; }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-light);
+  }
+
+  /* ===== FORM FIELDS ===== */
+  .field-group {
+    margin-bottom: 14px;
+  }
+  .field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+    display: block;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .field-row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  input[type="number"], input[type="text"], input[type="date"], textarea, select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--surface-2);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(56,142,60,0.12);
+    background: #fff;
+  }
+  input::placeholder { color: var(--text-muted); font-size: 12px; }
+
+  .input-with-tag { position: relative; }
+  .input-tag {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--border-light);
+    padding: 2px 5px;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+  .input-cash .input-tag { color: var(--cash-color); background: #E3F2FD; }
+  .input-credit .input-tag { color: var(--credit-color); background: #FFF3E0; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 11px 20px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.18s;
+    letter-spacing: 0.2px;
+  }
+  .btn-primary {
+    background: var(--primary-mid);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(46,125,50,0.3);
+  }
+  .btn-primary:hover { background: var(--primary); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-outline {
+    background: transparent;
+    color: var(--primary-mid);
+    border: 1.5px solid var(--primary-mid);
+  }
+  .btn-outline:hover { background: var(--primary-pale); }
+  .btn-ghost {
+    background: var(--surface-3);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--border-light); }
+  .btn-full { width: 100%; }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+  .btn-icon {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ===== EXPENSE CATEGORY BLOCK ===== */
+  .expense-category {
+    background: var(--surface-2);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .expense-cat-header {
+    background: var(--surface-3);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .expense-cat-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-dark);
+  }
+  .expense-cat-total {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-mid);
+  }
+  .expense-cat-body {
+    padding: 12px 14px;
+  }
+  .expense-cat-body.collapsed { display: none; }
+
+  /* ===== DASHBOARD ===== */
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px 12px;
+  }
+  .month-title {
+    font-family: 'Noto Serif Devanagari', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary-dark);
+  }
+  .month-nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-mid);
+    transition: all 0.18s;
+    box-shadow: var(--shadow-sm);
+  }
+  .month-nav-btn:hover { background: var(--primary-pale); border-color: var(--primary-light); }
+  .month-nav-btn:disabled { opacity: 0.35; cursor: default; }
+  .month-nav-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 16px 16px;
+  }
+  .summary-tile {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 13px 14px;
+    box-shadow: var(--shadow-sm);
+  }
+  .summary-tile-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .summary-tile-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .summary-tile-value.profit { color: var(--profit); }
+  .summary-tile-value.loss { color: var(--loss); }
+  .summary-tile-value.cash { color: var(--cash-color); }
+  .summary-tile-value.credit { color: var(--credit-color); }
+  .summary-tile.highlight {
+    grid-column: span 2;
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-mid));
+    border-color: transparent;
+  }
+  .summary-tile.highlight .summary-tile-label { color: rgba(255,255,255,0.75); }
+  .summary-tile.highlight .summary-tile-value { color: #fff; font-size: 20px; }
+
+  .formula-note {
+    margin: 0 16px 16px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* Daily sales list */
+  .sales-list { padding: 0 16px 12px; }
+  .sales-list-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .sales-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    font-size: 12.5px;
+  }
+  .sales-row-date { color: var(--text-secondary); font-weight: 500; }
+  .sales-row-amount { font-weight: 700; color: var(--primary-mid); }
+  .sales-row:hover { background: var(--primary-bg); }
+
+  /* ===== DATE ROW ===== */
+  .date-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 14px;
+  }
+  .date-display {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-dark);
+  }
+  .date-display small {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    display: block;
+  }
+
+  /* ===== STAFF CARD ===== */
+  .staff-card {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .staff-card-header {
+    padding: 12px 16px;
+    background: var(--surface-3);
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .staff-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-dark);
+  }
+  .staff-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: var(--primary-pale);
+    color: var(--primary-dark);
+  }
+  .staff-card-body { padding: 14px 16px; }
+  .staff-balance-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .staff-balance-pill {
+    flex: 1;
+    text-align: center;
+    padding: 7px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+  }
+  .pill-cash { background: #E3F2FD; color: var(--cash-color); }
+  .pill-credit { background: #FFF3E0; color: var(--credit-color); }
+  .pill-prev { background: var(--surface-3); color: var(--text-secondary); }
+  .pill-value { font-size: 13px; font-weight: 700; display: block; margin-top: 3px; }
+
+  /* ===== REPORT ===== */
+  .report-output {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1A2E1A;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    white-space: nowrap;
+    max-width: 90%;
+    text-align: center;
+    z-index: 999;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== BADGE ===== */
+  .badge-existing {
+    background: #FFF8E1;
+    border: 1px solid #FFE082;
+    color: #F57F17;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 11.5px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    line-height: 1.5;
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ===== PAGE PADDING ===== */
+  .page { padding: 0 0 20px; }
+  .page-section { padding: 0 14px; margin-bottom: 14px; }
+
+  /* ===== DIVIDER ===== */
+  .divider { height: 1px; background: var(--border-light); margin: 12px 0; }
+
+  /* ===== TOTAL ROW ===== */
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 0;
+    border-top: 1px solid var(--border-light);
+    font-size: 13px;
+  }
+  .total-row-label { color: var(--text-secondary); font-weight: 500; }
+  .total-row-value { font-weight: 700; color: var(--primary-dark); }
+  .total-row.grand { border-top: 2px solid var(--border); padding-top: 11px; }
+  .total-row.grand .total-row-label { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .total-row.grand .total-row-value { font-size: 16px; color: var(--primary); }
+
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">हॉटेल व्यवसाय हिशेब</div>
+      <div class="topbar-subtitle">दैनंदिन हिशेब व्यवस्थापन</div>
+    </div>
+    <div class="topbar-date-badge" id="topbarDate"></div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div class="content-area" id="contentArea">
+
+    <!-- ======= TAB 1: DASHBOARD ======= -->
+    <div class="tab-panel active page" id="tab-dashboard">
+
+      <div class="month-nav">
+        <button class="month-nav-btn" id="btnPrevMonth" onclick="changeMonth(-1)">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div class="month-title" id="monthTitle">—</div>
+        <button class="month-nav-btn" id="btnNextMonth" onclick="changeMonth(1)">
+          <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-tile highlight">
+          <div class="summary-tile-label">मासिक एकूण विक्री</div>
+          <div class="summary-tile-value" id="db-total-sales">₹ 0.00</div>
+        </div>
+        <div class="summary-tile">
+          <div class="summary-tile-label">एकूण खर्च</div>
+          <div class="summary-tile-value" id="db-total-expense">₹ 0.00</div>
+        </div>
+        <div class="summary-tile">
+          <div class="summary-tile-label">रोख खर्च</div>
+          <div class="summary-tile-value cash" id="db-cash-expense">₹ 0.00</div>
+        </div>
+        <div class="summary-tile">
+          <div class="summary-tile-label">उधार खर्च</div>
+          <div class="summary-tile-value credit" id="db-credit-expense">₹ 0.00</div>
+        </div>
+        <div class="summary-tile">
+          <div class="summary-tile-label">कर्मचारी देयके</div>
+          <div class="summary-tile-value" id="db-staff-total">₹ 0.00</div>
+        </div>
+        <div class="summary-tile">
+          <div class="summary-tile-label">५% कर (अंदाजे)</div>
+          <div class="summary-tile-value" id="db-tax">₹ 0.00</div>
+        </div>
+        <div class="summary-tile highlight" id="db-result-tile">
+          <div class="summary-tile-label" id="db-result-label">निव्वळ नफा</div>
+          <div class="summary-tile-value profit" id="db-net-result">₹ 0.00</div>
+        </div>
+      </div>
+
+      <div class="formula-note">
+        नफा = एकूण विक्री &minus; एकूण खर्च &minus; ५% कर<br>
+        <strong id="db-formula-line">—</strong>
+      </div>
+
+      <div class="sales-list">
+        <div class="sales-list-title">महिन्यातील दैनंदिन विक्री</div>
+        <div id="salesListContainer">
+          <div style="color:var(--text-muted);font-size:12px;text-align:center;padding:16px;">या महिन्याची कोणतीही विक्री नोंद नाही.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======= TAB 2: ENTRY ======= -->
+    <div class="tab-panel page" id="tab-entry">
+
+      <!-- Sub-tabs -->
+      <div style="display:flex;gap:0;margin-bottom:0;border-bottom:2px solid var(--border-light);background:var(--surface);">
+        <button id="subTabSales" onclick="switchSubTab('sales')"
+          style="flex:1;padding:12px;font-family:inherit;font-size:13px;font-weight:600;border:none;background:transparent;color:var(--primary);cursor:pointer;border-bottom:2.5px solid var(--primary);margin-bottom:-2px;">
+          विक्री नोंद
+        </button>
+        <button id="subTabExpense" onclick="switchSubTab('expense')"
+          style="flex:1;padding:12px;font-family:inherit;font-size:13px;font-weight:600;border:none;background:transparent;color:var(--text-muted);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;">
+          खर्च नोंद
+        </button>
+      </div>
+
+      <!-- SALES SUB-TAB -->
+      <div id="subpanel-sales" style="padding:14px;">
+
+        <div class="date-row" style="margin-bottom:14px;border-radius:var(--radius-sm);border:1px solid var(--border-light);">
+          <div>
+            <div class="date-display" id="salesDateDisplay">—</div>
+            <small style="font-size:11px;color:var(--text-muted);">निवडलेली तारीख</small>
+          </div>
+          <input type="date" id="salesDatePicker" onchange="onSalesDateChange()"
+            style="width:auto;font-size:12px;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;">
+        </div>
+
+        <div id="salesExistingBadge" class="badge-existing" style="display:none;">
+          <span>&#9432;</span>
+          <span>या तारखेची नोंद आधीच आहे. सुरक्षित केल्यावर जुनी नोंद बदलेल.</span>
+        </div>
+
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-header">
+            <span class="card-header-title">आजची विक्री</span>
+          </div>
+          <div class="card-body">
+            <div class="field-group">
+              <label class="field-label">एकूण विक्री रक्कम (₹)</label>
+              <div class="input-with-tag">
+                <input type="number" id="saleAmount" placeholder="0.00" min="0" step="0.01"
+                  oninput="updateMonthlySalesTotal()">
+                <span class="input-tag">₹</span>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">टिपण्णी (ऐच्छिक)</label>
+              <input type="text" id="saleNotes" placeholder="नोंद...">
+            </div>
+            <button class="btn btn-primary btn-full" onclick="saveSale()">
+              <svg class="btn-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              सुरक्षित करा
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-header-title">मासिक विक्री सारांश</span>
+          </div>
+          <div class="card-body" style="padding-bottom:6px;">
+            <div id="monthlySalesList" style="margin-bottom:10px;max-height:220px;overflow-y:auto;">
+              <div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px 0;">कोणतीही नोंद नाही</div>
+            </div>
+            <div class="total-row grand">
+              <span class="total-row-label">एकूण मासिक विक्री</span>
+              <span class="total-row-value" id="monthlyTotalDisplay">₹ 0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="total-row-label">५% कर (अंदाजे)</span>
+              <span class="total-row-value" id="monthlyTaxDisplay" style="color:var(--credit-color);">₹ 0.00</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- EXPENSE SUB-TAB -->
+      <div id="subpanel-expense" style="padding:14px;display:none;">
+
+        <div class="date-row" style="margin-bottom:14px;border-radius:var(--radius-sm);border:1px solid var(--border-light);">
+          <div>
+            <div class="date-display" id="expenseDateDisplay">—</div>
+            <small style="font-size:11px;color:var(--text-muted);">निवडलेली तारीख</small>
+          </div>
+          <input type="date" id="expenseDatePicker" onchange="onExpenseDateChange()"
+            style="width:auto;font-size:12px;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;">
+        </div>
+
+        <div id="expenseExistingBadge" class="badge-existing" style="display:none;">
+          <span>&#9432;</span>
+          <span>या तारखेची खर्च नोंद आधीच आहे. सुरक्षित केल्यावर जुनी नोंद बदलेल.</span>
+        </div>
+
+        <!-- VEGETABLES -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('vegBody', 'vegTotal')">
+            <span class="expense-cat-title">भाजीपाला</span>
+            <span class="expense-cat-total" id="vegTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="vegBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="vegCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="vegCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">कांदा (पोती)</label>
+                <input type="number" id="onionBags" placeholder="0" min="0">
+              </div>
+              <div class="field-group">
+                <label class="field-label">लिंबू (किलो)</label>
+                <input type="number" id="lemonKg" placeholder="0.0" min="0" step="0.5">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHICKEN -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('chickenBody', 'chickenTotal')">
+            <span class="expense-cat-title">चिकन</span>
+            <span class="expense-cat-total" id="chickenTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="chickenBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="chickenCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="chickenCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">तंदूर (नग)</label>
+                <input type="number" id="tandoorPieces" placeholder="0" min="0">
+              </div>
+              <div class="field-group">
+                <label class="field-label">संपूर्ण चिकन (किलो)</label>
+                <input type="number" id="wholeChickenKg" placeholder="0.0" min="0" step="0.5">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MUTTON -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('muttonBody', 'muttonTotal')">
+            <span class="expense-cat-title">मटण</span>
+            <span class="expense-cat-total" id="muttonTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="muttonBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="muttonCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="muttonCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">प्रमाण (किलो)</label>
+              <input type="number" id="muttonKg" placeholder="0.0" min="0" step="0.5">
+            </div>
+          </div>
+        </div>
+
+        <!-- EGGS -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('eggBody', 'eggTotal')">
+            <span class="expense-cat-title">अंडी</span>
+            <span class="expense-cat-total" id="eggTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="eggBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="eggCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="eggCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">ट्रे संख्या</label>
+                <input type="number" id="eggTrays" placeholder="0" min="0">
+              </div>
+              <div class="field-group">
+                <label class="field-label">नग संख्या</label>
+                <input type="number" id="eggPieces" placeholder="0" min="0">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GROCERY -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('groceryBody', 'groceryTotal')">
+            <span class="expense-cat-title">किराणा</span>
+            <span class="expense-cat-total" id="groceryTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="groceryBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="groceryCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="groceryCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">तेल (डबे)</label>
+                <input type="number" id="oilCans" placeholder="0" min="0">
+              </div>
+              <div class="field-group">
+                <label class="field-label">तंदूरी आटा (किलो)</label>
+                <input type="number" id="tandooriAtta" placeholder="0.0" min="0" step="0.5">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GAS -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('gasBody', 'gasTotal')">
+            <span class="expense-cat-title">गॅस</span>
+            <span class="expense-cat-total" id="gasTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="gasBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="gasCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="gasCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">सिलेंडर संख्या</label>
+              <input type="number" id="gasCylinders" placeholder="0" min="0" style="max-width:140px;">
+            </div>
+          </div>
+        </div>
+
+        <!-- COAL -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('coalBody', 'coalTotal')">
+            <span class="expense-cat-title">कोळसा</span>
+            <span class="expense-cat-total" id="coalTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="coalBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="coalCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="coalCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DAIRY -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('dairyBody', 'dairyTotal')">
+            <span class="expense-cat-title">डेअरी</span>
+            <span class="expense-cat-total" id="dairyTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="dairyBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="dairyCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="dairyCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLASTIC -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('plasticBody', 'plasticTotal')">
+            <span class="expense-cat-title">प्लास्टिक</span>
+            <span class="expense-cat-total" id="plasticTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="plasticBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="plasticCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="plasticCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- INCENTIVE -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('incentiveBody', 'incentiveTotal')">
+            <span class="expense-cat-title">प्रोत्साहन</span>
+            <span class="expense-cat-total" id="incentiveTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="incentiveBody">
+            <div class="field-group">
+              <label class="field-label">रक्कम (₹)</label>
+              <div class="input-with-tag"><input type="number" id="incentiveAmount" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">₹</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OTHER -->
+        <div class="expense-category">
+          <div class="expense-cat-header" onclick="toggleCat('otherBody', 'otherTotal')">
+            <span class="expense-cat-title">इतर</span>
+            <span class="expense-cat-total" id="otherTotal">₹ 0.00</span>
+          </div>
+          <div class="expense-cat-body" id="otherBody">
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="otherCash" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="otherCredit" placeholder="0" min="0" oninput="calcExpenseTotals()"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EXPENSE TOTALS -->
+        <div class="card" style="margin-top:4px;">
+          <div class="card-body">
+            <div class="total-row">
+              <span class="total-row-label">एकूण रोख खर्च</span>
+              <span class="total-row-value" id="expTotalCash" style="color:var(--cash-color);">₹ 0.00</span>
+            </div>
+            <div class="total-row">
+              <span class="total-row-label">एकूण उधार खर्च</span>
+              <span class="total-row-value" id="expTotalCredit" style="color:var(--credit-color);">₹ 0.00</span>
+            </div>
+            <div class="total-row grand">
+              <span class="total-row-label">एकूण खर्च</span>
+              <span class="total-row-value" id="expGrandTotal">₹ 0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary btn-full" onclick="saveExpense()">
+            <svg class="btn-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            खर्च सुरक्षित करा
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ======= TAB 3: STAFF ======= -->
+    <div class="tab-panel page" id="tab-staff">
+      <div style="padding:0 14px;">
+
+        <div class="date-row" style="margin-bottom:14px;border-radius:var(--radius-sm);border:1px solid var(--border-light);">
+          <div>
+            <div class="date-display" id="staffDateDisplay">—</div>
+            <small style="font-size:11px;color:var(--text-muted);">निवडलेली तारीख</small>
+          </div>
+          <input type="date" id="staffDatePicker" onchange="onStaffDateChange()"
+            style="width:auto;font-size:12px;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;">
+        </div>
+
+        <!-- Chef 1 -->
+        <div class="staff-card">
+          <div class="staff-card-header">
+            <span class="staff-card-name">भारतीय शेफ १</span>
+            <span class="staff-badge">CHEF 1</span>
+          </div>
+          <div class="staff-card-body">
+            <div class="field-group">
+              <label class="field-label">नाव</label>
+              <input type="text" id="chef1Name" placeholder="शेफचे नाव">
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख दिले (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="chef1Cash" placeholder="0" min="0"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="chef1Credit" placeholder="0" min="0"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="staff-balance-row">
+              <div class="staff-balance-pill pill-cash">
+                <span>या महिन्यात रोख</span>
+                <span class="pill-value" id="chef1MonthCash">₹ 0</span>
+              </div>
+              <div class="staff-balance-pill pill-credit">
+                <span>मागील शिल्लक</span>
+                <span class="pill-value" id="chef1PrevBalance">₹ 0</span>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-full btn-sm" style="margin-top:10px;" onclick="saveStaff('chef1')">सुरक्षित करा</button>
+          </div>
+        </div>
+
+        <!-- Chef 2 -->
+        <div class="staff-card">
+          <div class="staff-card-header">
+            <span class="staff-card-name">भारतीय शेफ २</span>
+            <span class="staff-badge">CHEF 2</span>
+          </div>
+          <div class="staff-card-body">
+            <div class="field-group">
+              <label class="field-label">नाव</label>
+              <input type="text" id="chef2Name" placeholder="शेफचे नाव">
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख दिले (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="chef2Cash" placeholder="0" min="0"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="chef2Credit" placeholder="0" min="0"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="staff-balance-row">
+              <div class="staff-balance-pill pill-cash">
+                <span>या महिन्यात रोख</span>
+                <span class="pill-value" id="chef2MonthCash">₹ 0</span>
+              </div>
+              <div class="staff-balance-pill pill-credit">
+                <span>मागील शिल्लक</span>
+                <span class="pill-value" id="chef2PrevBalance">₹ 0</span>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-full btn-sm" style="margin-top:10px;" onclick="saveStaff('chef2')">सुरक्षित करा</button>
+          </div>
+        </div>
+
+        <!-- Tandoor Chef -->
+        <div class="staff-card">
+          <div class="staff-card-header">
+            <span class="staff-card-name">तंदूर शेफ</span>
+            <span class="staff-badge">TANDOOR</span>
+          </div>
+          <div class="staff-card-body">
+            <div class="field-group">
+              <label class="field-label">नाव</label>
+              <input type="text" id="tandoorName" placeholder="शेफचे नाव">
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख दिले (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="tandoorCash" placeholder="0" min="0"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="tandoorCredit" placeholder="0" min="0"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="staff-balance-row">
+              <div class="staff-balance-pill pill-cash">
+                <span>या महिन्यात रोख</span>
+                <span class="pill-value" id="tandoorMonthCash">₹ 0</span>
+              </div>
+              <div class="staff-balance-pill pill-credit">
+                <span>मागील शिल्लक</span>
+                <span class="pill-value" id="tandoorPrevBalance">₹ 0</span>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-full btn-sm" style="margin-top:10px;" onclick="saveStaff('tandoor')">सुरक्षित करा</button>
+          </div>
+        </div>
+
+        <!-- Mavshi -->
+        <div class="staff-card">
+          <div class="staff-card-header">
+            <span class="staff-card-name">मावशी</span>
+            <span class="staff-badge">MAVSHI</span>
+          </div>
+          <div class="staff-card-body">
+            <div class="field-group">
+              <label class="field-label">नाव</label>
+              <input type="text" id="mavshiName" placeholder="नाव">
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label">रोख दिले (₹)</label>
+                <div class="input-with-tag input-cash"><input type="number" id="mavshiCash" placeholder="0" min="0"><span class="input-tag">रोख</span></div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">उधार (₹)</label>
+                <div class="input-with-tag input-credit"><input type="number" id="mavshiCredit" placeholder="0" min="0"><span class="input-tag">उधार</span></div>
+              </div>
+            </div>
+            <div class="staff-balance-row">
+              <div class="staff-balance-pill pill-cash">
+                <span>या महिन्यात रोख</span>
+                <span class="pill-value" id="mavshiMonthCash">₹ 0</span>
+              </div>
+              <div class="staff-balance-pill pill-credit">
+                <span>मागील शिल्लक</span>
+                <span class="pill-value" id="mavshiPrevBalance">₹ 0</span>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-full btn-sm" style="margin-top:10px;" onclick="saveStaff('mavshi')">सुरक्षित करा</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ======= TAB 4: REPORTS ======= -->
+    <div class="tab-panel page" id="tab-reports">
+      <div style="padding:0 14px;">
+
+        <div class="date-row" style="margin-bottom:14px;border-radius:var(--radius-sm);border:1px solid var(--border-light);">
+          <div>
+            <div class="date-display" id="reportDateDisplay">—</div>
+            <small style="font-size:11px;color:var(--text-muted);">निवडलेली तारीख</small>
+          </div>
+          <input type="date" id="reportDatePicker" onchange="onReportDateChange()"
+            style="width:auto;font-size:12px;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;">
+        </div>
+
+        <div class="field-row" style="margin-bottom:14px;">
+          <button class="btn btn-primary" onclick="generateDailyReport()" style="flex:1;">
+            <svg class="btn-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            दैनंदिन अहवाल
+          </button>
+          <button class="btn btn-outline" onclick="generateMonthlyReport()" style="flex:1;">
+            <svg class="btn-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            मासिक अहवाल
+          </button>
+        </div>
+
+        <div class="card" id="reportCard" style="margin-bottom:14px;display:none;">
+          <div class="card-header">
+            <span class="card-header-title">अहवाल पूर्वावलोकन</span>
+            <button onclick="copyReport()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;">कॉपी करा</button>
+          </div>
+          <div class="card-body" style="padding:12px;">
+            <div class="report-output" id="reportOutput"></div>
+          </div>
+        </div>
+
+        <div class="field-row" id="reportActionBtns" style="display:none;margin-bottom:14px;">
+          <button class="btn btn-primary" onclick="shareViaWhatsApp()" style="flex:1;">
+            <svg class="btn-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            WhatsApp
+          </button>
+          <button class="btn btn-ghost" onclick="downloadReport()" style="flex:1;">
+            <svg class="btn-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            डाउनलोड
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-header-title">डेटा बॅकअप</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6;">
+              सर्व नोंदी JSON फाईल स्वरूपात निर्यात करा. भविष्यातील पुनर्स्थापनेसाठी उपयुक्त.
+            </p>
+            <div class="field-row">
+              <button class="btn btn-outline btn-sm" onclick="exportData()" style="flex:1;">
+                <svg class="btn-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                निर्यात करा
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()" style="flex:1;">
+                <svg class="btn-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                आयात करा
+              </button>
+            </div>
+            <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      डॅशबोर्ड
+    </button>
+    <button class="nav-item" id="nav-entry" onclick="switchTab('entry')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      नोंद
+    </button>
+    <button class="nav-item" id="nav-staff" onclick="switchTab('staff')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      कर्मचारी
+    </button>
+    <button class="nav-item" id="nav-reports" onclick="switchTab('reports')">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+      अहवाल
+    </button>
+  </nav>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===========================
+// DATA STORE (localStorage)
+// ===========================
+const DB_KEY = 'hvh_data';
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    return raw ? JSON.parse(raw) : { sales: {}, expenses: {}, staff: {}, staffPayments: {} };
+  } catch { return { sales: {}, expenses: {}, staff: {}, staffPayments: {} }; }
+}
+
+function saveDB(db) {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+
+let db = loadDB();
+
+// ===========================
+// DATE HELPERS
+// ===========================
+function toIso(d) { return d.toISOString().split('T')[0]; }
+
+function today() { return toIso(new Date()); }
+
+function toMarathiDate(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-').map(Number);
+  const months = ['जानेवारी','फेब्रुवारी','मार्च','एप्रिल','मे','जून','जुलै','ऑगस्ट','सप्टेंबर','ऑक्टोबर','नोव्हेंबर','डिसेंबर'];
+  return `${String(d).padStart(2,'0')} ${months[m-1]} ${y}`;
+}
+
+function toMarathiMonth(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const months = ['जानेवारी','फेब्रुवारी','मार्च','एप्रिल','मे','जून','जुलै','ऑगस्ट','सप्टेंबर','ऑक्टोबर','नोव्हेंबर','डिसेंबर'];
+  return `${months[m-1]} ${y}`;
+}
+
+function yearMonth(iso) { return iso ? iso.substring(0, 7) : ''; }
+
+function prevYM(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  if (m === 1) return `${y-1}-12`;
+  return `${y}-${String(m-1).padStart(2,'0')}`;
+}
+
+function nextYM(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  if (m === 12) return `${y+1}-01`;
+  return `${y}-${String(m+1).padStart(2,'0')}`;
+}
+
+function rupee(n) {
+  const v = parseFloat(n) || 0;
+  return '₹ ' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function n(v) { return parseFloat(v) || 0; }
+function ni(v) { return parseInt(v) || 0; }
+
+// ===========================
+// INIT
+// ===========================
+let currentMonth = yearMonth(today());
+let reportText = '';
+
+function init() {
+  // Set today's date on all date pickers
+  const t = today();
+  ['salesDatePicker','expenseDatePicker','staffDatePicker','reportDatePicker'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = t;
+  });
+  document.getElementById('salesDateDisplay').textContent = toMarathiDate(t);
+  document.getElementById('expenseDateDisplay').textContent = toMarathiDate(t);
+  document.getElementById('staffDateDisplay').textContent = toMarathiDate(t);
+  document.getElementById('reportDateDisplay').textContent = toMarathiDate(t);
+  document.getElementById('topbarDate').textContent = toMarathiDate(t);
+
+  updateDashboard();
+  checkExistingSale(t);
+  checkExistingExpense(t);
+  loadStaffData(t);
+  updateStaffSummaries();
+  calcExpenseTotals();
+  loadExistingExpenseForm(t);
+}
+
+// ===========================
+// TAB NAVIGATION
+// ===========================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('nav-' + tab).classList.add('active');
+  document.getElementById('contentArea').scrollTop = 0;
+}
+
+function switchSubTab(sub) {
+  const isSales = sub === 'sales';
+  document.getElementById('subpanel-sales').style.display = isSales ? 'block' : 'none';
+  document.getElementById('subpanel-expense').style.display = isSales ? 'none' : 'block';
+  document.getElementById('subTabSales').style.color = isSales ? 'var(--primary)' : 'var(--text-muted)';
+  document.getElementById('subTabSales').style.borderBottomColor = isSales ? 'var(--primary)' : 'transparent';
+  document.getElementById('subTabExpense').style.color = isSales ? 'var(--text-muted)' : 'var(--primary)';
+  document.getElementById('subTabExpense').style.borderBottomColor = isSales ? 'transparent' : 'var(--primary)';
+}
+
+// ===========================
+// EXPENSE CATEGORY TOGGLE
+// ===========================
+function toggleCat(bodyId, totalId) {
+  const body = document.getElementById(bodyId);
+  body.classList.toggle('collapsed');
+}
+
+// ===========================
+// SALES
+// ===========================
+function onSalesDateChange() {
+  const d = document.getElementById('salesDatePicker').value;
+  document.getElementById('salesDateDisplay').textContent = toMarathiDate(d);
+  checkExistingSale(d);
+  updateMonthlySalesTotal();
+}
+
+function checkExistingSale(d) {
+  const sale = db.sales[d];
+  const badge = document.getElementById('salesExistingBadge');
+  if (sale) {
+    document.getElementById('saleAmount').value = sale.amount || '';
+    document.getElementById('saleNotes').value = sale.notes || '';
+    badge.style.display = 'flex';
+  } else {
+    document.getElementById('saleAmount').value = '';
+    document.getElementById('saleNotes').value = '';
+    badge.style.display = 'none';
+  }
+  updateMonthlySalesTotal();
+}
+
+function saveSale() {
+  const d = document.getElementById('salesDatePicker').value;
+  const amount = n(document.getElementById('saleAmount').value);
+  const notes = document.getElementById('saleNotes').value.trim();
+  if (!d) { showToast('तारीख निवडा'); return; }
+  db.sales[d] = { amount, notes, savedAt: Date.now() };
+  saveDB(db);
+  updateMonthlySalesTotal();
+  checkExistingSale(d);
+  updateDashboard();
+  showToast('विक्री नोंद सुरक्षित झाली');
+}
+
+function updateMonthlySalesTotal() {
+  const d = document.getElementById('salesDatePicker').value || today();
+  const ym = yearMonth(d);
+  const entries = Object.entries(db.sales).filter(([k]) => k.startsWith(ym)).sort(([a],[b]) => a.localeCompare(b));
+  const total = entries.reduce((s, [, v]) => s + n(v.amount), 0);
+  document.getElementById('monthlyTotalDisplay').textContent = rupee(total);
+  document.getElementById('monthlyTaxDisplay').textContent = rupee(total * 0.05);
+
+  const listEl = document.getElementById('monthlySalesList');
+  if (entries.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px 0;">कोणतीही नोंद नाही</div>';
+  } else {
+    listEl.innerHTML = entries.map(([k, v]) =>
+      `<div class="sales-row"><span class="sales-row-date">${toMarathiDate(k)}</span><span class="sales-row-amount">${rupee(v.amount)}</span></div>`
+    ).join('');
+  }
+}
+
+// ===========================
+// EXPENSES
+// ===========================
+function onExpenseDateChange() {
+  const d = document.getElementById('expenseDatePicker').value;
+  document.getElementById('expenseDateDisplay').textContent = toMarathiDate(d);
+  checkExistingExpense(d);
+  loadExistingExpenseForm(d);
+}
+
+function checkExistingExpense(d) {
+  const ex = db.expenses[d];
+  document.getElementById('expenseExistingBadge').style.display = ex ? 'flex' : 'none';
+}
+
+const expFields = [
+  'vegCash','vegCredit','chickenCash','chickenCredit',
+  'muttonCash','muttonCredit','eggCash','eggCredit',
+  'groceryCash','groceryCredit','gasCash','gasCredit',
+  'coalCash','coalCredit','dairyCash','dairyCredit',
+  'plasticCash','plasticCredit','incentiveAmount',
+  'otherCash','otherCredit',
+  'onionBags','lemonKg','tandoorPieces','wholeChickenKg',
+  'muttonKg','eggTrays','eggPieces','oilCans','tandooriAtta','gasCylinders'
+];
+
+function loadExistingExpenseForm(d) {
+  const ex = db.expenses[d];
+  expFields.forEach(f => {
+    const el = document.getElementById(f);
+    if (el) el.value = ex && ex[f] ? ex[f] : '';
+  });
+  calcExpenseTotals();
+}
+
+function getExpVal(id) { return n(document.getElementById(id)?.value); }
+
+function calcExpenseTotals() {
+  const cats = {
+    veg:       { cash: getExpVal('vegCash'), credit: getExpVal('vegCredit'), totalId: 'vegTotal' },
+    chicken:   { cash: getExpVal('chickenCash'), credit: getExpVal('chickenCredit'), totalId: 'chickenTotal' },
+    mutton:    { cash: getExpVal('muttonCash'), credit: getExpVal('muttonCredit'), totalId: 'muttonTotal' },
+    egg:       { cash: getExpVal('eggCash'), credit: getExpVal('eggCredit'), totalId: 'eggTotal' },
+    grocery:   { cash: getExpVal('groceryCash'), credit: getExpVal('groceryCredit'), totalId: 'groceryTotal' },
+    gas:       { cash: getExpVal('gasCash'), credit: getExpVal('gasCredit'), totalId: 'gasTotal' },
+    coal:      { cash: getExpVal('coalCash'), credit: getExpVal('coalCredit'), totalId: 'coalTotal' },
+    dairy:     { cash: getExpVal('dairyCash'), credit: getExpVal('dairyCredit'), totalId: 'dairyTotal' },
+    plastic:   { cash: getExpVal('plasticCash'), credit: getExpVal('plasticCredit'), totalId: 'plasticTotal' },
+    incentive: { cash: getExpVal('incentiveAmount'), credit: 0, totalId: 'incentiveTotal' },
+    other:     { cash: getExpVal('otherCash'), credit: getExpVal('otherCredit'), totalId: 'otherTotal' },
+  };
+
+  let totalCash = 0, totalCredit = 0;
+  Object.values(cats).forEach(c => {
+    const t = c.cash + c.credit;
+    document.getElementById(c.totalId).textContent = rupee(t);
+    totalCash += c.cash;
+    totalCredit += c.credit;
+  });
+
+  document.getElementById('expTotalCash').textContent = rupee(totalCash);
+  document.getElementById('expTotalCredit').textContent = rupee(totalCredit);
+  document.getElementById('expGrandTotal').textContent = rupee(totalCash + totalCredit);
+}
+
+function saveExpense() {
+  const d = document.getElementById('expenseDatePicker').value;
+  if (!d) { showToast('तारीख निवडा'); return; }
+  const data = {};
+  expFields.forEach(f => {
+    const el = document.getElementById(f);
+    if (el) data[f] = el.value ? (f.endsWith('Bags') || f.endsWith('Pieces') || f.endsWith('Trays') || f.endsWith('Cans') || f.endsWith('Cylinders') ? ni(el.value) : n(el.value)) : 0;
+  });
+  data.savedAt = Date.now();
+  db.expenses[d] = data;
+  saveDB(db);
+  checkExistingExpense(d);
+  updateDashboard();
+  showToast('खर्च नोंद सुरक्षित झाली');
+}
+
+// ===========================
+// STAFF
+// ===========================
+const staffKeys = ['chef1','chef2','tandoor','mavshi'];
+const staffNames = { chef1:'भारतीय शेफ १', chef2:'भारतीय शेफ २', tandoor:'तंदूर शेफ', mavshi:'मावशी' };
+
+function onStaffDateChange() {
+  const d = document.getElementById('staffDatePicker').value;
+  document.getElementById('staffDateDisplay').textContent = toMarathiDate(d);
+  loadStaffData(d);
+}
+
+function loadStaffData(d) {
+  const ym = yearMonth(d);
+  staffKeys.forEach(k => {
+    const key = `${ym}_${k}_${d}`;
+    const rec = db.staffPayments && db.staffPayments[key];
+    document.getElementById(`${k}Name`).value = rec?.name || '';
+    document.getElementById(`${k}Cash`).value = rec?.cash || '';
+    document.getElementById(`${k}Credit`).value = rec?.credit || '';
+  });
+}
+
+function saveStaff(key) {
+  const d = document.getElementById('staffDatePicker').value;
+  if (!d) { showToast('तारीख निवडा'); return; }
+  const ym = yearMonth(d);
+  const storeKey = `${ym}_${key}_${d}`;
+  if (!db.staffPayments) db.staffPayments = {};
+  db.staffPayments[storeKey] = {
+    name: document.getElementById(`${key}Name`).value.trim(),
+    cash: n(document.getElementById(`${key}Cash`).value),
+    credit: n(document.getElementById(`${key}Credit`).value),
+    date: d,
+    role: key
+  };
+  saveDB(db);
+  updateStaffSummaries();
+  updateDashboard();
+  showToast(`${staffNames[key]} देयक सुरक्षित झाले`);
+}
+
+function updateStaffSummaries() {
+  const d = document.getElementById('staffDatePicker')?.value || today();
+  const ym = yearMonth(d);
+  const prevYm = prevYM(ym);
+  if (!db.staffPayments) return;
+
+  staffKeys.forEach(k => {
+    // This month cash total
+    const monthCash = Object.entries(db.staffPayments)
+      .filter(([key, v]) => key.startsWith(`${ym}_${k}_`) && v.role === k)
+      .reduce((s, [, v]) => s + n(v.cash), 0);
+
+    // Previous month net credit (credit - cash => remaining)
+    const prevCredit = Object.entries(db.staffPayments)
+      .filter(([key, v]) => key.startsWith(`${prevYm}_${k}_`) && v.role === k)
+      .reduce((s, [, v]) => s + n(v.credit) - n(v.cash), 0);
+
+    document.getElementById(`${k}MonthCash`).textContent = rupee(monthCash);
+    document.getElementById(`${k}PrevBalance`).textContent = rupee(Math.max(0, prevCredit));
+  });
+}
+
+// ===========================
+// DASHBOARD
+// ===========================
+function changeMonth(dir) {
+  if (dir === 1 && currentMonth >= yearMonth(today())) return;
+  currentMonth = dir === -1 ? prevYM(currentMonth) : nextYM(currentMonth);
+  document.getElementById('btnNextMonth').disabled = currentMonth >= yearMonth(today());
+  updateDashboard();
+}
+
+function updateDashboard() {
+  const ym = currentMonth;
+  document.getElementById('monthTitle').textContent = toMarathiMonth(ym);
+  document.getElementById('btnNextMonth').disabled = ym >= yearMonth(today());
+
+  // Sales
+  const salesEntries = Object.entries(db.sales).filter(([k]) => k.startsWith(ym));
+  const totalSales = salesEntries.reduce((s, [, v]) => s + n(v.amount), 0);
+
+  // Expenses
+  const expEntries = Object.entries(db.expenses).filter(([k]) => k.startsWith(ym));
+  let totalCash = 0, totalCredit = 0;
+  expEntries.forEach(([, v]) => {
+    totalCash += n(v.vegCash)+n(v.chickenCash)+n(v.muttonCash)+n(v.eggCash)+
+      n(v.groceryCash)+n(v.gasCash)+n(v.coalCash)+n(v.dairyCash)+
+      n(v.plasticCash)+n(v.incentiveAmount)+n(v.otherCash);
+    totalCredit += n(v.vegCredit)+n(v.chickenCredit)+n(v.muttonCredit)+n(v.eggCredit)+
+      n(v.groceryCredit)+n(v.gasCredit)+n(v.coalCredit)+n(v.dairyCredit)+
+      n(v.plasticCredit)+n(v.otherCredit);
+  });
+
+  // Staff payments
+  let staffTotal = 0;
+  if (db.staffPayments) {
+    Object.entries(db.staffPayments).forEach(([k, v]) => {
+      if (k.startsWith(ym)) staffTotal += n(v.cash) + n(v.credit);
+    });
+  }
+
+  const totalExpense = totalCash + totalCredit + staffTotal;
+  const tax = totalSales * 0.05;
+  const netProfit = totalSales - totalExpense - tax;
+
+  document.getElementById('db-total-sales').textContent = rupee(totalSales);
+  document.getElementById('db-total-expense').textContent = rupee(totalExpense);
+  document.getElementById('db-cash-expense').textContent = rupee(totalCash);
+  document.getElementById('db-credit-expense').textContent = rupee(totalCredit);
+  document.getElementById('db-staff-total').textContent = rupee(staffTotal);
+  document.getElementById('db-tax').textContent = rupee(tax);
+  document.getElementById('db-net-result').textContent = rupee(netProfit);
+
+  const resultEl = document.getElementById('db-net-result');
+  const labelEl = document.getElementById('db-result-label');
+  if (netProfit >= 0) {
+    resultEl.className = 'summary-tile-value profit';
+    labelEl.textContent = 'निव्वळ नफा';
+  } else {
+    resultEl.className = 'summary-tile-value loss';
+    labelEl.textContent = 'निव्वळ तोटा';
+  }
+
+  document.getElementById('db-formula-line').textContent =
+    `${rupee(totalSales)} − ${rupee(totalExpense)} − ${rupee(tax)} = ${rupee(netProfit)}`;
+
+  // Sales list
+  const listHtml = salesEntries.length === 0
+    ? '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:16px;">या महिन्याची कोणतीही विक्री नोंद नाही.</div>'
+    : salesEntries.sort(([a],[b]) => a.localeCompare(b))
+        .map(([k, v]) => `<div class="sales-row"><span class="sales-row-date">${toMarathiDate(k)}</span><span class="sales-row-amount">${rupee(v.amount)}</span></div>`)
+        .join('');
+  document.getElementById('salesListContainer').innerHTML = listHtml;
+}
+
+// ===========================
+// REPORTS
+// ===========================
+function onReportDateChange() {
+  const d = document.getElementById('reportDatePicker').value;
+  document.getElementById('reportDateDisplay').textContent = toMarathiDate(d);
+}
+
+function generateDailyReport() {
+  const d = document.getElementById('reportDatePicker').value || today();
+  const sale = db.sales[d];
+  const exp = db.expenses[d];
+  const ym = yearMonth(d);
+
+  let s = '';
+  s += '============================\n';
+  s += 'हॉटेल व्यवसाय हिशेब\n';
+  s += `दैनंदिन अहवाल - ${toMarathiDate(d)}\n`;
+  s += '============================\n\n';
+
+  s += '[ विक्री ]\n';
+  s += `एकूण विक्री : ${rupee(sale?.amount || 0)}\n\n`;
+
+  if (exp) {
+    s += '[ खर्च तपशील ]\n';
+    if (n(exp.vegCash)+n(exp.vegCredit) > 0)
+      s += `भाजीपाला  - रोख: ${rupee(exp.vegCash)}  उधार: ${rupee(exp.vegCredit)}\n`;
+    if (ni(exp.onionBags) > 0) s += `  कांदा: ${exp.onionBags} पोती\n`;
+    if (n(exp.lemonKg) > 0) s += `  लिंबू: ${exp.lemonKg} किलो\n`;
+    if (n(exp.chickenCash)+n(exp.chickenCredit) > 0)
+      s += `चिकन     - रोख: ${rupee(exp.chickenCash)}  उधार: ${rupee(exp.chickenCredit)}\n`;
+    if (ni(exp.tandoorPieces) > 0) s += `  तंदूर: ${exp.tandoorPieces} नग\n`;
+    if (n(exp.wholeChickenKg) > 0) s += `  संपूर्ण: ${exp.wholeChickenKg} किलो\n`;
+    if (n(exp.muttonCash)+n(exp.muttonCredit) > 0)
+      s += `मटण      - रोख: ${rupee(exp.muttonCash)}  उधार: ${rupee(exp.muttonCredit)}\n`;
+    if (n(exp.muttonKg) > 0) s += `  प्रमाण: ${exp.muttonKg} किलो\n`;
+    if (n(exp.eggCash)+n(exp.eggCredit) > 0)
+      s += `अंडी      - रोख: ${rupee(exp.eggCash)}  उधार: ${rupee(exp.eggCredit)}\n`;
+    if (ni(exp.eggTrays) > 0 || ni(exp.eggPieces) > 0)
+      s += `  ट्रे: ${exp.eggTrays||0}  नग: ${exp.eggPieces||0}\n`;
+    if (n(exp.groceryCash)+n(exp.groceryCredit) > 0)
+      s += `किराणा    - रोख: ${rupee(exp.groceryCash)}  उधार: ${rupee(exp.groceryCredit)}\n`;
+    if (ni(exp.oilCans) > 0) s += `  तेल: ${exp.oilCans} डबे\n`;
+    if (n(exp.tandooriAtta) > 0) s += `  आटा: ${exp.tandooriAtta} किलो\n`;
+    if (n(exp.gasCash)+n(exp.gasCredit) > 0)
+      s += `गॅस       - रोख: ${rupee(exp.gasCash)}  उधार: ${rupee(exp.gasCredit)}  सिलेंडर: ${exp.gasCylinders||0}\n`;
+    if (n(exp.coalCash)+n(exp.coalCredit) > 0)
+      s += `कोळसा     - रोख: ${rupee(exp.coalCash)}  उधार: ${rupee(exp.coalCredit)}\n`;
+    if (n(exp.dairyCash)+n(exp.dairyCredit) > 0)
+      s += `डेअरी     - रोख: ${rupee(exp.dairyCash)}  उधार: ${rupee(exp.dairyCredit)}\n`;
+    if (n(exp.plasticCash)+n(exp.plasticCredit) > 0)
+      s += `प्लास्टिक  - रोख: ${rupee(exp.plasticCash)}  उधार: ${rupee(exp.plasticCredit)}\n`;
+    if (n(exp.incentiveAmount) > 0)
+      s += `प्रोत्साहन - ${rupee(exp.incentiveAmount)}\n`;
+    if (n(exp.otherCash)+n(exp.otherCredit) > 0)
+      s += `इतर       - रोख: ${rupee(exp.otherCash)}  उधार: ${rupee(exp.otherCredit)}\n`;
+
+    const tc = n(exp.vegCash)+n(exp.chickenCash)+n(exp.muttonCash)+n(exp.eggCash)+
+      n(exp.groceryCash)+n(exp.gasCash)+n(exp.coalCash)+n(exp.dairyCash)+
+      n(exp.plasticCash)+n(exp.incentiveAmount)+n(exp.otherCash);
+    const tcr = n(exp.vegCredit)+n(exp.chickenCredit)+n(exp.muttonCredit)+n(exp.eggCredit)+
+      n(exp.groceryCredit)+n(exp.gasCredit)+n(exp.coalCredit)+n(exp.dairyCredit)+
+      n(exp.plasticCredit)+n(exp.otherCredit);
+    s += `\nएकूण रोख खर्च    : ${rupee(tc)}\n`;
+    s += `एकूण उधार खर्च   : ${rupee(tcr)}\n`;
+    s += `एकूण खर्च (एकत्र) : ${rupee(tc+tcr)}\n`;
+  } else {
+    s += '[ खर्च ] - नोंद नाही\n';
+  }
+
+  // Staff
+  if (db.staffPayments) {
+    const staffRecs = Object.entries(db.staffPayments).filter(([k]) => k.includes(`_${d}`));
+    if (staffRecs.length > 0) {
+      s += '\n[ कर्मचारी देयके ]\n';
+      staffRecs.forEach(([, v]) => {
+        s += `${staffNames[v.role] || v.role} - रोख: ${rupee(v.cash)}  उधार: ${rupee(v.credit)}\n`;
+      });
+    }
+  }
+
+  s += '\n----------------------------\n';
+  s += 'अहवाल: हॉटेल व्यवसाय हिशेब अॅप';
+
+  reportText = s;
+  showReport(s);
+}
+
+function generateMonthlyReport() {
+  const d = document.getElementById('reportDatePicker').value || today();
+  const ym = yearMonth(d);
+
+  const salesEntries = Object.entries(db.sales).filter(([k]) => k.startsWith(ym)).sort(([a],[b]) => a.localeCompare(b));
+  const expEntries = Object.entries(db.expenses).filter(([k]) => k.startsWith(ym));
+
+  const totalSales = salesEntries.reduce((s, [, v]) => s + n(v.amount), 0);
+  let totalCash = 0, totalCredit = 0, staffTotal = 0;
+  expEntries.forEach(([, v]) => {
+    totalCash += n(v.vegCash)+n(v.chickenCash)+n(v.muttonCash)+n(v.eggCash)+
+      n(v.groceryCash)+n(v.gasCash)+n(v.coalCash)+n(v.dairyCash)+
+      n(v.plasticCash)+n(v.incentiveAmount)+n(v.otherCash);
+    totalCredit += n(v.vegCredit)+n(v.chickenCredit)+n(v.muttonCredit)+n(v.eggCredit)+
+      n(v.groceryCredit)+n(v.gasCredit)+n(v.coalCredit)+n(v.dairyCredit)+
+      n(v.plasticCredit)+n(v.otherCredit);
+  });
+  if (db.staffPayments) {
+    Object.entries(db.staffPayments).filter(([k]) => k.startsWith(ym))
+      .forEach(([, v]) => { staffTotal += n(v.cash) + n(v.credit); });
+  }
+
+  const totalExpense = totalCash + totalCredit + staffTotal;
+  const tax = totalSales * 0.05;
+  const netProfit = totalSales - totalExpense - tax;
+
+  let s = '';
+  s += '============================\n';
+  s += 'हॉटेल व्यवसाय हिशेब\n';
+  s += `मासिक अहवाल - ${toMarathiMonth(ym)}\n`;
+  s += '============================\n\n';
+  s += '[ दैनंदिन विक्री ]\n';
+  if (salesEntries.length === 0) {
+    s += 'कोणतीही नोंद नाही\n';
+  } else {
+    salesEntries.forEach(([k, v]) => {
+      s += `${toMarathiDate(k)} : ${rupee(v.amount)}\n`;
+    });
+  }
+  s += '\n[ मासिक सारांश ]\n';
+  s += `एकूण विक्री          : ${rupee(totalSales)}\n`;
+  s += `एकूण रोख खर्च       : ${rupee(totalCash)}\n`;
+  s += `एकूण उधार खर्च      : ${rupee(totalCredit)}\n`;
+  s += `कर्मचारी देयके       : ${rupee(staffTotal)}\n`;
+  s += '----------------------------\n';
+  s += `एकूण खर्च            : ${rupee(totalExpense)}\n\n`;
+  s += `५% कर (GST अंदाजे)  : ${rupee(tax)}\n\n`;
+  const label = netProfit >= 0 ? 'निव्वळ नफा' : 'निव्वळ तोटा';
+  s += `${label}              : ${rupee(netProfit)}\n\n`;
+  s += `सूत्र: ${rupee(totalSales)} − ${rupee(totalExpense)} − ${rupee(tax)} = ${rupee(netProfit)}\n`;
+  s += '\n----------------------------\n';
+  s += 'अहवाल: हॉटेल व्यवसाय हिशेब अॅप';
+
+  reportText = s;
+  showReport(s);
+}
+
+function showReport(text) {
+  document.getElementById('reportOutput').textContent = text;
+  document.getElementById('reportCard').style.display = 'block';
+  document.getElementById('reportActionBtns').style.display = 'flex';
+}
+
+function copyReport() {
+  if (!reportText) return;
+  navigator.clipboard.writeText(reportText).then(() => showToast('अहवाल कॉपी झाला'));
+}
+
+function shareViaWhatsApp() {
+  if (!reportText) return;
+  const url = 'https://wa.me/?text=' + encodeURIComponent(reportText);
+  window.open(url, '_blank');
+}
+
+function downloadReport() {
+  if (!reportText) return;
+  const d = document.getElementById('reportDatePicker').value || today();
+  const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `hotel_report_${d}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('अहवाल डाउनलोड झाला');
+}
+
+// ===========================
+// EXPORT / IMPORT
+// ===========================
+function exportData() {
+  const json = JSON.stringify(db, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `hotel_hisheb_backup_${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('बॅकअप निर्यात झाला');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (imported && typeof imported === 'object') {
+        db = { ...loadDB(), ...imported };
+        saveDB(db);
+        updateDashboard();
+        checkExistingSale(document.getElementById('salesDatePicker').value || today());
+        loadExistingExpenseForm(document.getElementById('expenseDatePicker').value || today());
+        updateStaffSummaries();
+        showToast('डेटा आयात झाला');
+      } else {
+        showToast('अवैध फाईल');
+      }
+    } catch { showToast('आयात अयशस्वी'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ===========================
+// TOAST
+// ===========================
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// ===========================
+// START
+// ===========================
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
